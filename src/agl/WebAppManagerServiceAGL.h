@@ -3,6 +3,7 @@
 
 #include <memory>
 
+#include "WebRuntimeAGL.h"
 #include "WebAppManagerService.h"
 #include "Timer.h"
 
@@ -25,10 +26,10 @@ public:
 
     void setStartupApplication(const std::string& startup_app_id,
         const std::string& startup_app_uri, int startup_app_surface_id,
-	int _surface_role, int _panel_type, int _width, int _height);
+	int _width, int _height, std::list<struct agl_shell_surface> surfaces);
     void setAppIdForEventTarget(const std::string& app_id);
 
-    void launchOnHost(int argc, const char **argv);
+    void launchOnHost(int argc, const char **argv, std::list<struct agl_shell_surface> surfaces);
     void sendEvent(int argc, const char **argv);
 
     // WebAppManagerService
@@ -63,8 +64,8 @@ private:
 
     std::string startup_app_id_;
     std::string startup_app_uri_;
-    int surface_role;
-    int panel_type;
+
+    std::list<struct agl_shell_surface> surfaces_;
     int width;
     int height;
 

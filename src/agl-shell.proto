@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+enum surface_type {
+    TYPE_BACKGROUND = 0;
+    TYPE_PANEL = 1;
+};
+
+enum panel_edge {
+    PANEL_TOP = 0;
+    PANEL_BOTTOM = 1;
+    PANEL_LEFT = 2;
+    PANEL_RIGHT = 3;
+};
+
+message shell_panel {
+    panel_edge edge = 1;
+    int32 width = 2;
+};
+
+message shell_surface {
+    surface_type surface_type = 1;
+    shell_panel panel = 2;
+    string src = 3;
+};
+
+message CSurfaces {
+    repeated shell_surface surfaces = 1;
+};

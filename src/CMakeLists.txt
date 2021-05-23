@@ -54,6 +54,8 @@ message(STATUS "** Destination dir: ${WAM_DEST_DIR}")
 
 find_package(Boost COMPONENTS filesystem REQUIRED)
 find_package(PkgConfig REQUIRED)
+find_package(Protobuf REQUIRED)
+
 pkg_search_module(GLIB REQUIRED glib-2.0)
 pkg_search_module(LIBXML REQUIRED libxml-2.0)
 pkg_search_module(JSONCPP REQUIRED jsoncpp)
@@ -82,7 +84,11 @@ set(WAM_COMMON_CXX_FLAGS
     -fpermissive
     -funwind-tables
     -fno-rtti
+    -DGOOGLE_PROTOBUF_NO_RTTI
 )
+
+set(AGL_SHELL agl-shell.proto)
+protobuf_generate_cpp(AGL_SHELL_PROTO_SRC AGL_SHELL_PROTO_INCL ${AGL_SHELL})
 
 ###########################################################
 # WebAppMgrCore Shared Library
@@ -110,6 +116,7 @@ set(WAM_CORE_SOURCES
     util/Timer.cpp
     util/Url.cpp
     util/WebAppManagerUtils.cpp
+    ${AGL_SHELL_PROTO_SRC}
 )
 
 set(WAM_CORE_HEADERS
@@ -140,6 +147,7 @@ set(WAM_CORE_HEADERS
     util/Timer.h
     util/Url.h
     util/WebAppManagerUtils.h
+    ${AGL_SHELL_PROTO_INCL}
 )
 
 set(WAM_CORE_INCLUDE_DIRS
@@ -177,8 +185,10 @@ endif()
 add_library(wamcorelib SHARED ${WAM_CORE_HEADERS} ${WAM_CORE_SOURCES})
 target_compile_options(wamcorelib PRIVATE ${WAM_COMMON_CXX_FLAGS})
 target_compile_definitions(wamcorelib PRIVATE ${WAM_COMMON_DEFINES})
+target_include_directories(wamcorelib PUBLIC ${PROTOBUF_INCLUDE_DIRS})
+target_include_directories(wamcorelib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(wamcorelib PUBLIC ${WAM_CORE_INCLUDE_DIRS})
-target_link_libraries(wamcorelib PRIVATE ${WAM_CORE_LIBRARIES})
+target_link_libraries(wamcorelib PRIVATE ${WAM_CORE_LIBRARIES} ${PROTOBUF_LIBRARIES})
 set_target_properties(wamcorelib PROPERTIES
     OUTPUT_NAME ${WAM_CORE_LIB_NAME}
     VERSION "1.0.0"

@@ -1,5 +1,3 @@
-#include "WebRuntimeAGL.h"
-
 #include <cassert>
 #include <regex>
 #include <unistd.h>
@@ -11,6 +9,7 @@
 
 #include <webos/app/webos_main.h>
 
+#include "WebRuntimeAGL.h"
 #include "LogManager.h"
 #include "PlatformModuleFactoryImpl.h"
 #include "StringUtils.h"
@@ -63,38 +62,34 @@ static bool isBrowserProcess(const std::vector<std::string>& args) {
 static std::string
 is_activate_app(const std::vector<std::string>& args)
 {
-	for (size_t i = 0; i < args.size(); i++) {
-		if (args[i].find("--activate-app=") != std::string::npos) {
-			return args[i];
-		}
-	}
-	return std::string();
+    for (size_t i = 0; i < args.size(); i++) {
+        if (args[i].find("--activate-app=") != std::string::npos) {
+            return args[i];
+        }
+    }
+    return std::string();
 }
 
-static enum agl_shell_surface_type
-get_surface_type(const char* surface_type)
+void
+agl_shell_panel::to_edge(const char *_edge)
 {
-  if (!strcmp(surface_type, "background"))
-    return AGL_SHELL_TYPE_BACKGROUND;
-  if (!strcmp(surface_type, "panel"))
-    return AGL_SHELL_TYPE_PANEL;
-
-  return AGL_SHELL_TYPE_NONE;
+    if (!strcmp(_edge, "top"))
+        edge = AGL_SHELL_PANEL_TOP;
+    else if (!strcmp(_edge, "bottom"))
+        edge = AGL_SHELL_PANEL_BOTTOM;
+    else if (!strcmp(_edge, "left"))
+        edge = AGL_SHELL_PANEL_LEFT;
+    else if (!strcmp(_edge, "right"))
+        edge = AGL_SHELL_PANEL_RIGHT;
+    else
+        assert(!"Invalid edge detected");
 }
 
-static enum agl_shell_panel_type
-get_surface_panel_type(const char* panel_type)
+void
+agl_shell_panel::init(const char *_edge, const char *_width)
 {
-  if (!strcmp(panel_type, "top"))
-    return AGL_SHELL_PANEL_TOP;
-  if (!strcmp(panel_type, "bottom"))
-    return AGL_SHELL_PANEL_BOTTOM;
-  if (!strcmp(panel_type, "left"))
-    return AGL_SHELL_PANEL_LEFT;
-  if (!strcmp(panel_type, "right"))
-    return AGL_SHELL_PANEL_RIGHT;
-
-  return AGL_SHELL_PANEL_NOT_FOUND;
+    to_edge(_edge);
+    width = strtoul(_width, NULL, 10);
 }
 
 static bool isSharedBrowserProcess(const std::vector<std::string>& args) {
@@ -163,16 +158,15 @@ pid_t Launcher::find_surfpid_by_rid(pid_t app_pid)
 
 int
 SingleBrowserProcessWebAppLauncher::launch(const std::string& id,
-					   const std::string& uri,
-					   const std::string& surface_role,
-					   const std::string& panel_type,
-					   const std::string& width,
-					   const std::string& height)
+                                           const std::string& uri,
+                                           std::list<struct agl_shell_surface> surfaces,
+                                           const std::string& width,
+                                           const std::string& height)
 {
-	m_rid = (int) getpid();
+    m_rid = (int) getpid();
 
-	WebAppManagerServiceAGL::instance()->setStartupApplication(id, uri, m_rid, AGL_SHELL_TYPE_NONE, AGL_SHELL_PANEL_NOT_FOUND, 0, 0);
-	return m_rid;
+    WebAppManagerServiceAGL::instance()->setStartupApplication(id, uri, m_rid, 0, 0, surfaces);
+    return m_rid;
 }
 
 int SingleBrowserProcessWebAppLauncher::loop(int argc, const char** argv, volatile sig_atomic_t& e_flag) {
@@ -183,33 +177,30 @@ int SingleBrowserProcessWebAppLauncher::loop(int argc, const char** argv, volati
 
 int
 SharedBrowserProcessWebAppLauncher::launch(const std::string& id,
-					   const std::string& uri,
-					   const std::string& surface_role,
-					   const std::string& panel_type,
-					   const std::string& width,
-					   const std::string& height)
+                                           const std::string& uri,
+                                           std::list<struct agl_shell_surface> surfaces,
+                                           const std::string& width,
+                                           const std::string& height)
 {
-	if (!WebAppManagerServiceAGL::instance()->initializeAsHostClient()) {
-		LOG_DEBUG("Failed to initialize as host client");
-		return -1;
-	}
+    if (!WebAppManagerServiceAGL::instance()->initializeAsHostClient()) {
+        LOG_DEBUG("Failed to initialize as host client");
+        return -1;
+    }
 
-	m_rid = (int)getpid();
-	std::string m_rid_s = std::to_string(m_rid);
+    m_rid = (int)getpid();
+    std::string m_rid_s = std::to_string(m_rid);
 
-	std::vector<const char*> data;
-	data.push_back(kStartApp);
-	data.push_back(id.c_str());
-	data.push_back(uri.c_str());
-	data.push_back(m_rid_s.c_str());
-	data.push_back(surface_role.c_str());
-	data.push_back(panel_type.c_str());
+    std::vector<const char*> data;
 
-	data.push_back(width.c_str());
-	data.push_back(height.c_str());
+    data.push_back(kStartApp);
+    data.push_back(id.c_str());
+    data.push_back(uri.c_str());
+    data.push_back(m_rid_s.c_str());
+    data.push_back(width.c_str());
+    data.push_back(height.c_str());
 
-	WebAppManagerServiceAGL::instance()->launchOnHost(data.size(), data.data());
-	return m_rid;
+    WebAppManagerServiceAGL::instance()->launchOnHost(data.size(), data.data(), surfaces);
+    return m_rid;
 }
 
 int SharedBrowserProcessWebAppLauncher::loop(int argc, const char** argv, volatile sig_atomic_t& e_flag) {
@@ -281,11 +272,8 @@ int WebAppLauncherRuntime::run(int argc, const char** argv) {
   if (!init())
     return -1;
 
-  std::string surface_role_str = std::to_string(m_surface_type);
-  std::string panel_type_str = std::to_string(m_panel_type);
-
   /* Launch WAM application */
-  m_launcher->m_rid = m_launcher->launch(m_id, m_url, surface_role_str, panel_type_str, m_width, m_height);
+  m_launcher->m_rid = m_launcher->launch(m_id, m_url, surfaces, m_width, m_height);
 
   if (m_launcher->m_rid < 0) {
     LOG_DEBUG("cannot launch WAM app (%s)", m_id.c_str());
@@ -376,9 +364,10 @@ bool WebAppLauncherRuntime::init() {
     else if (m_id.rfind("webapps-homescreen", 0) == 0)
       m_role = "homescreen";
 
-    LOG_DEBUG("id=[%s], name=[%s], role=[%s], url=[%s], host=[%s], port=%d, token=[%s], width=[%s], height[%s], surface_type[%d], panel_type[%d]",
-            m_id.c_str(), m_name.c_str(), m_role.c_str(), m_url.c_str(),
-            m_host.c_str(), m_port, m_token.c_str(), m_width.c_str(), m_height.c_str(), m_surface_type, m_panel_type);
+    LOG_DEBUG("id=[%s], name=[%s], role=[%s], url=[%s], host=[%s], port=%d, token=[%s], width=[%s], height[%s]",
+              m_id.c_str(), m_name.c_str(), m_role.c_str(), m_url.c_str(),
+              m_host.c_str(), m_port, m_token.c_str(), m_width.c_str(),
+              m_height.c_str());
 
     // Setup HomeScreen API
     if (!init_hs()) {
@@ -409,6 +398,55 @@ bool WebAppLauncherRuntime::init_hs() {
   return true;
 }
 
+void
+WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
+{
+    bool bg_found = false;
+
+    for (xmlNode *node = root_node->children; node; node = node->next) {
+        if (!xmlStrcmp(node->name, (const xmlChar *) "surface")) {
+            const char *c_surface_type =
+                (const char *) xmlGetProp(node, (const xmlChar *) "role");
+
+            if (!strcmp(c_surface_type, "panel")) {
+                struct agl_shell_surface surface;
+                struct agl_shell_panel panel;
+
+                xmlChar *width = xmlGetProp(node,  (const xmlChar *) "width");
+                xmlChar *source = xmlGetProp(node, (const xmlChar *) "src");
+                xmlChar *edge = xmlGetProp(node, (const xmlChar *) "edge");
+
+                assert(source);
+                assert(width);
+                assert(edge);
+
+                panel.init((const char *) edge, (const char *) width);
+                surface.panel = panel;
+                surface.src = std::string((char *) source);
+                surface.surface_type = AGL_SHELL_TYPE_PANEL;
+                surfaces.push_back(surface);
+
+            } else if (!strcmp(c_surface_type, "background")) {
+                struct agl_shell_surface surface;
+
+                assert(!bg_found);
+
+                xmlChar *source = xmlGetProp(node, (const xmlChar *) "src");
+                assert(source);
+
+                surface.surface_type = AGL_SHELL_TYPE_BACKGROUND;
+                surface.src = std::string((char *) source);
+                surfaces.push_back(surface);
+
+                bg_found = true;
+            }
+        }
+    }
+
+    /* need at least a background */
+    assert(bg_found);
+}
+
 
 int WebAppLauncherRuntime::parse_config (const char *path_to_config)
 {
@@ -425,9 +463,6 @@ int WebAppLauncherRuntime::parse_config (const char *path_to_config)
 
   xmlChar *width = nullptr;
   xmlChar *height = nullptr;
-
-  xmlChar *surface_type = nullptr;
-  xmlChar *panel_type = nullptr;
 
   id = xmlGetProp(root, (const xmlChar*)"id");
   version = xmlGetProp(root, (const xmlChar*)"version");
@@ -448,13 +483,13 @@ int WebAppLauncherRuntime::parse_config (const char *path_to_config)
       height = xmlGetProp(node, (const xmlChar*) "height");
     }
 
-    if (!xmlStrcmp(node->name, (const xmlChar*) "surface")) {
-      surface_type = xmlGetProp(node, (const xmlChar*) "role");
-      panel_type = xmlGetProp(node, (const xmlChar*) "panel");
+    if (!xmlStrcmp(node->name, (const xmlChar*) "client-shell")) {
+	parse_config_client_shell(node);
     }
   }
 
   fprintf(stdout, "...parse_config...\n");
+
   LOG_DEBUG("id: %s", id);
   LOG_DEBUG("version: %s", version);
   LOG_DEBUG("name: %s", name);
@@ -464,8 +499,6 @@ int WebAppLauncherRuntime::parse_config (const char *path_to_config)
   LOG_DEBUG("icon: %s", icon);
   LOG_DEBUG("width: %s", width);
   LOG_DEBUG("height %s", height);
-  LOG_DEBUG("surface_type: %s", surface_type);
-  LOG_DEBUG("panel_type %s", panel_type);
 
   m_name = std::string((const char*)name);
   if (width)
@@ -478,24 +511,6 @@ int WebAppLauncherRuntime::parse_config (const char *path_to_config)
   else
 	  m_height = std::string("0");
 
-  m_surface_type = AGL_SHELL_TYPE_NONE;
-  m_panel_type = AGL_SHELL_PANEL_NOT_FOUND;
-
-  if (surface_type)
-    m_surface_type = get_surface_type((const char *) surface_type);
-
-  if (panel_type) {
-    if (m_surface_type != AGL_SHELL_TYPE_PANEL) {
-      LOG_WARNING("Panel_type can only be set when surface_type is panel");
-      return -1;
-    }
-
-    m_panel_type = get_surface_panel_type((const char*) panel_type);
-    if (m_panel_type == AGL_SHELL_PANEL_NOT_FOUND) {
-      LOG_WARNING("Incorrect panel_type value");
-      return -1;
-    }
-  }
 
   xmlFree(id);
   xmlFree(version);
@@ -506,8 +521,6 @@ int WebAppLauncherRuntime::parse_config (const char *path_to_config)
   xmlFree(icon);
   xmlFree(width);
   xmlFree(height);
-  xmlFree(surface_type);
-  xmlFree(panel_type);
   xmlFreeDoc(doc);
 
   return 0;
