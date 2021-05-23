@@ -22,6 +22,8 @@
 #include "WebAppManager.h"
 #include "WebAppBase.h"
 
+#include "agl-shell.pb.h"
+
 class WamSocketLockFile {
 public:
   WamSocketLockFile() {
@@ -100,6 +102,133 @@ private:
   int lock_fd_ = -1;
 };
 
+static ::panel_edge
+to_panel_edge(enum agl_shell_panel_edge edge)
+{
+    switch (edge) {
+    case AGL_SHELL_PANEL_TOP:
+        return ::panel_edge::PANEL_TOP;
+    case AGL_SHELL_PANEL_BOTTOM:
+        return ::panel_edge::PANEL_BOTTOM;
+    case AGL_SHELL_PANEL_LEFT:
+        return ::panel_edge::PANEL_LEFT;
+    case AGL_SHELL_PANEL_RIGHT:
+        return ::panel_edge::PANEL_RIGHT;
+    default:
+        assert(!"Should not get here");
+    }
+
+    assert(!"Should not get here");
+    return ::panel_edge::PANEL_TOP;
+}
+
+static enum agl_shell_panel_edge
+from_panel_edge(::panel_edge edge)
+{
+
+    switch (edge) {
+    case ::panel_edge::PANEL_TOP:
+        return AGL_SHELL_PANEL_TOP;
+    case ::panel_edge::PANEL_BOTTOM:
+        return AGL_SHELL_PANEL_BOTTOM;
+    case ::panel_edge::PANEL_LEFT:
+        return AGL_SHELL_PANEL_LEFT;
+    case ::panel_edge::PANEL_RIGHT:
+        return AGL_SHELL_PANEL_RIGHT;
+    default:
+        assert(!"Should not get here");
+    }
+
+    assert(!"Should not get here");
+    return AGL_SHELL_PANEL_TOP;
+}
+
+
+static void
+print_csurfaces(::CSurfaces surfaces)
+{
+    for (int i = 0; i < surfaces.surfaces_size(); i++) {
+        const ::shell_surface &shsurf = surfaces.surfaces(i);
+        ::surface_type s_type = shsurf.surface_type();
+        if (s_type == ::surface_type::TYPE_BACKGROUND) {
+            LOG_DEBUG("got csurface type background");
+        } else if (s_type == ::surface_type::TYPE_PANEL) {
+            LOG_DEBUG("got csurface type panel");
+        }
+    }
+}
+
+static void
+print_surfaces(std::list<struct agl_shell_surface> surfaces)
+{
+    for (struct agl_shell_surface &s : surfaces) {
+        switch (s.surface_type) {
+        case AGL_SHELL_TYPE_BACKGROUND:
+            LOG_DEBUG("shell surface is a background");
+            break;
+        case AGL_SHELL_TYPE_PANEL:
+            LOG_DEBUG("shell surface is a panel");
+            LOG_DEBUG("panel edge %d, width %d", s.panel.edge, s.panel.width);
+            break;
+        }
+    }
+}
+
+static void
+surfaces_to_csurfaces(::CSurfaces *surfaces_, std::list<struct agl_shell_surface> surfaces)
+{
+
+    for (struct agl_shell_surface s: surfaces) {
+        ::shell_surface *sh_surf = surfaces_->add_surfaces();
+
+        switch (s.surface_type) {
+        case AGL_SHELL_TYPE_BACKGROUND:
+            sh_surf->set_surface_type(::surface_type::TYPE_BACKGROUND);
+            sh_surf->set_src(s.src);
+            LOG_DEBUG("Added background surface to CSurfaces");
+            break;
+        case AGL_SHELL_TYPE_PANEL:
+            sh_surf->set_surface_type(::surface_type::TYPE_PANEL);
+
+            ::shell_panel *sh_panel = sh_surf->mutable_panel();
+            sh_panel->set_width(s.panel.width);
+            sh_panel->set_edge(to_panel_edge(s.panel.edge));
+
+            sh_surf->set_src(s.src);
+            LOG_DEBUG("Added panel surface to CSurfaces");
+            break;
+        }
+    }
+}
+
+static void
+csurfaces_to_surfaces(::CSurfaces surfaces_, std::list<struct agl_shell_surface> *surfaces)
+{
+    int i;
+    for (i = 0; i < surfaces_.surfaces_size(); i++) {
+        const ::shell_surface &s = surfaces_.surfaces(i);
+        struct agl_shell_surface shsurf;
+
+        switch (s.surface_type()) {
+        case ::surface_type::TYPE_BACKGROUND:
+            shsurf.surface_type = AGL_SHELL_TYPE_BACKGROUND;
+            shsurf.src = s.src();
+            LOG_DEBUG("Added csurface background");
+            break;
+        case ::surface_type::TYPE_PANEL:
+            shsurf.surface_type = AGL_SHELL_TYPE_PANEL;
+            shsurf.panel.width = s.panel().width();
+            shsurf.panel.edge = from_panel_edge(s.panel().edge());
+            shsurf.src = s.src();
+            LOG_DEBUG("Added csurface panel");
+            break;
+        default:
+            assert(!"Invalid surface type\n");
+        }
+        surfaces->push_back(shsurf);
+    }
+}
+
 class WamSocket {
 public:
   WamSocket() {
@@ -108,6 +237,8 @@ public:
       LOG_DEBUG("Failed to retrieve XDG_RUNTIME_DIR, falling back to /tmp");
       runtime_dir = "/tmp";
     }
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
     wam_socket_path_ = std::string(runtime_dir);
     wam_socket_path_.append("/wamsocket");
   }
@@ -115,10 +246,13 @@ public:
   ~WamSocket() {
     if (socket_fd_ != -1)
       close(socket_fd_);
+
+    google::protobuf::ShutdownProtobufLibrary();
   }
 
   bool createSocket(bool server) {
         // Create the socket file descriptor
+
     socket_fd_ = socket(AF_UNIX, SOCK_DGRAM, 0);
     if (socket_fd_ == -1) {
       LOG_DEBUG("Failed to open socket file descriptor");
@@ -145,51 +279,114 @@ public:
     return true;
   }
 
-  void sendMsg(int argc, const char **argv) {
+  void sendMsg(int argc, const char **argv, std::list<struct agl_shell_surface> surfaces) {
     std::string cmd;
     for (int i = 0; i < argc; ++i)
-      cmd.append(argv[i]).append(" ");
-    // Remove the last appended space if any
-    if (argc > 1)
-      cmd.pop_back();
+        cmd.append(argv[i]).append(" ");
     LOG_DEBUG("Sending message=[%s]", cmd.c_str());
-    ssize_t bytes = write(socket_fd_, cmd.c_str(), cmd.length());
-    LOG_DEBUG("Wrote %zd bytes.", bytes);
+
+    if (!surfaces.empty()) {
+        ::CSurfaces surfaces_;
+
+        // convert surfaces to CSurfaces::surfaces then serialize it as a
+        // string
+        surfaces_to_csurfaces(&surfaces_, surfaces);
+        print_csurfaces(surfaces_);
+
+        cmd.append("|");
+        std::string serialized_string = surfaces_.SerializeAsString();
+        cmd.append(serialized_string);
+    }
+
+    ssize_t bytes = write(socket_fd_, (void *) cmd.c_str(), cmd.length());
+    LOG_DEBUG("Wrote %zd bytes, cmd.length() %zd, buf=[%s]", bytes, cmd.length(), cmd.c_str());
   }
 
   int waitForMsg() {
-    char buf[PATH_MAX] = {};
-    ssize_t bytes;
+      char buf[PATH_MAX] = {};
+      ssize_t bytes;
 
-    LOG_DEBUG("Waiting for data...");
-    while (TEMP_FAILURE_RETRY((bytes = recv(socket_fd_, (void *)buf, sizeof(buf), 0)) != -1)) {
+      LOG_DEBUG("Waiting for data on socket_fd %d", socket_fd_);
+
+      memset(buf, 0, sizeof(buf));
+
+      bytes = recv(socket_fd_, (void *) buf, sizeof(buf), 0);
+
       int last = bytes - 1;
       // Remove the new line if there's one
-      if (buf[last] == '\n')
-        buf[last] = '\0';
-      LOG_DEBUG("Got %zd bytes=[%s].", bytes, buf);
-
-      std::string data(buf);
-      std::istringstream iss(data);
-      std::vector<const char*> res;
-      for(std::string s; iss >> s; ) {
-          res.push_back(strdup(s.c_str()));
+      if (buf[last] == '\n') {
+          LOG_DEBUG("Removing new line and adding NUL terminator");
+          buf[last] = '\0';
       }
 
-      if (std::string(res[0]) == kStartApp) {
-        WebAppManagerServiceAGL::instance()->setStartupApplication(
-          std::string(res[1]), std::string(res[2]), atoi(res[3]),
-	  atoi(res[4]), atoi(res[5]), atoi(res[6]), atoi(res[7]));
+      char *str = buf;
+      LOG_DEBUG("Got %zd bytes=[%s]", bytes, buf);
 
-        WebAppManagerServiceAGL::instance()->triggerStartupApp();
+      std::list<std::string> event_args;
+
+      std::list<struct agl_shell_surface> surfaces;
+
+      char *tokenize = strdup(str);
+      char *token = strtok(tokenize, " ");
+      while (token) {
+          LOG_DEBUG("Looking at token %s", token);
+          if (!strcmp(token, "|"))
+              break;
+
+          LOG_DEBUG("Pushing back token %s\n", token);
+          event_args.push_back(std::string(token));
+          token = strtok(NULL, " ");
+      }
+
+      // eat white-space until we get to '|'
+      while (str && *str && *str != '|')
+          str++;
+
+      str++;
+      std::string last_arg = std::string(str);
+      ::CSurfaces surfaces_;
+
+      bool parsed = surfaces_.ParseFromString(last_arg);
+      if (parsed) {
+          LOG_DEBUG("Serialized. Transfering to surfaces");
+          csurfaces_to_surfaces(surfaces_, &surfaces);
+          print_surfaces(surfaces);
+      }
+
+      std::string event = event_args.front();
+      event_args.pop_front();
+
+      if (event == kStartApp) {
+          std::string arg1 = event_args.front();
+          event_args.pop_front();
+          std::string arg2 = event_args.front();
+          event_args.pop_front();
+
+          int arg3 = std::stoi(event_args.front());
+          event_args.pop_front();
+          int arg4 = std::stoi(event_args.front());
+          event_args.pop_front();
+          int arg5 = std::stoi(event_args.front());
+          event_args.pop_front();
+
+          LOG_DEBUG("kStartApp, event %s, arg1 %s, arg2 %s",
+                  event.c_str(), arg1.c_str(), arg2.c_str());
+          LOG_DEBUG("kStartApp, arg3 %d, arg4 %d, arg5 %d",
+                  arg3, arg4, arg5);
+
+          if (!surfaces.empty()) {
+              LOG_DEBUG("Surfaces are not empty. Printing them");
+              print_surfaces(surfaces);
+          }
+
+          WebAppManagerServiceAGL::instance()->setStartupApplication(
+                  arg1, arg2, arg3, arg4, arg5, surfaces);
+          WebAppManagerServiceAGL::instance()->triggerStartupApp();
       } else {
-        WebAppManagerServiceAGL::instance()->setAppIdForEventTarget(std::string(res[1]));
-
-        WebAppManagerServiceAGL::instance()->triggetEventForApp(std::string(res[0]));
+          WebAppManagerServiceAGL::instance()->setAppIdForEventTarget(event_args.front());
+          WebAppManagerServiceAGL::instance()->triggetEventForApp(event);
       }
-      return 1;
-    }
-    return 0;
+    return 1;
   }
 
 private:
@@ -225,28 +422,29 @@ bool WebAppManagerServiceAGL::isHostServiceRunning()
     return !lock_file_->tryAcquireLock();
 }
 
-void WebAppManagerServiceAGL::launchOnHost(int argc, const char **argv)
+void WebAppManagerServiceAGL::launchOnHost(int argc, const char **argv,
+					   std::list<struct agl_shell_surface> surfaces)
 {
     LOG_DEBUG("Dispatching launchOnHost");
-    socket_->sendMsg(argc, argv);
+    socket_->sendMsg(argc, argv, surfaces);
 }
 
 void WebAppManagerServiceAGL::sendEvent(int argc, const char **argv)
 {
     LOG_DEBUG("Sending event");
-    socket_->sendMsg(argc, argv);
+    std::list<struct agl_shell_surface> surfaces;
+    socket_->sendMsg(argc, argv, surfaces);
 }
 
 void WebAppManagerServiceAGL::setStartupApplication(
     const std::string& startup_app_id,
     const std::string& startup_app_uri, int startup_app_surface_id,
-    int _surface_role, int _panel_type, int _width, int _height)
+    int _width, int _height, std::list<struct agl_shell_surface> surfaces)
 {
 	startup_app_id_ = startup_app_id;
 	startup_app_uri_ = startup_app_uri;
 	startup_app_surface_id_ = startup_app_surface_id;
-	surface_role = _surface_role;
-	panel_type = _panel_type;
+	surfaces_ = surfaces;
 
 	width = _width;
 	height = _height;
@@ -396,8 +594,8 @@ void WebAppManagerServiceAGL::launchStartupAppFromURL()
     //obj["icon"] = (const char*)icon;
     //obj["folderPath"] = startup_app_.c_str();
     obj["surfaceId"] = startup_app_surface_id_;
-    obj["surface_role"] = surface_role;
-    obj["panel_type"] = panel_type;
+    //obj["surface_role"] = surface_role;
+    //obj["panel_type"] = panel_type;
 
     obj["widthOverride"] = width;
     obj["heightOverride"] = height;

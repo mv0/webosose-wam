@@ -69,8 +69,12 @@ if(IS_WEBOS)
         list(APPEND WAM_COMMON_DEFINES HAS_LUNA_SERVICE)
     endif()
 elseif(IS_AGL)
+    find_package(Protobuf REQUIRED)
     pkg_search_module(LIBHS REQUIRED libhomescreen)
     list(APPEND WAM_COMMON_DEFINES HAS_AGL_SERVICE)
+
+    set(AGL_SHELL agl/agl-shell.proto)
+    protobuf_generate_cpp(AGL_SHELL_PROTO_SRC AGL_SHELL_PROTO_INCL ${AGL_SHELL})
 endif()
 
 set(WAM_COMMON_CXX_FLAGS
@@ -82,6 +86,7 @@ set(WAM_COMMON_CXX_FLAGS
     -fpermissive
     -funwind-tables
     -fno-rtti
+    -DGOOGLE_PROTOBUF_NO_RTTI
 )
 
 ###########################################################
@@ -140,6 +145,7 @@ set(WAM_CORE_HEADERS
     util/Timer.h
     util/Url.h
     util/WebAppManagerUtils.h
+    ${AGL_SHELL_PROTO_INCL}
 )
 
 set(WAM_CORE_INCLUDE_DIRS
@@ -172,13 +178,17 @@ if(IS_WEBOS)
     endif()
 elseif(IS_AGL)
     list(APPEND WAM_CORE_SOURCES agl/WebAppFactoryManagerAGL.cpp)
+    list(APPEND WAM_CORE_SOURCES ${AGL_SHELL_PROTO_SRC})
+    list(APPEND WAM_CORE_HEADERS ${AGL_SHELL_PROTO_INCL})
 endif()
 
 add_library(wamcorelib SHARED ${WAM_CORE_HEADERS} ${WAM_CORE_SOURCES})
 target_compile_options(wamcorelib PRIVATE ${WAM_COMMON_CXX_FLAGS})
 target_compile_definitions(wamcorelib PRIVATE ${WAM_COMMON_DEFINES})
+target_include_directories(wamcorelib PUBLIC ${PROTOBUF_INCLUDE_DIRS})
+target_include_directories(wamcorelib PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
 target_include_directories(wamcorelib PUBLIC ${WAM_CORE_INCLUDE_DIRS})
-target_link_libraries(wamcorelib PRIVATE ${WAM_CORE_LIBRARIES})
+target_link_libraries(wamcorelib PRIVATE ${WAM_CORE_LIBRARIES} ${PROTOBUF_LIBRARIES})
 set_target_properties(wamcorelib PROPERTIES
     OUTPUT_NAME ${WAM_CORE_LIB_NAME}
     VERSION "1.0.0"
