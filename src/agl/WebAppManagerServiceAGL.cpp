@@ -22,6 +22,7 @@
 #include "WebAppManager.h"
 #include "WebAppBase.h"
 
+#include "AglShellSurface.h"
 #include "agl-shell.pb.h"
 
 class WamSocketLockFile {
@@ -103,16 +104,16 @@ private:
 };
 
 static ::panel_edge
-to_panel_edge(enum agl_shell_panel_edge edge)
+to_panel_edge(panelEdge edge)
 {
     switch (edge) {
-    case AGL_SHELL_PANEL_TOP:
+    case TOP:
         return ::panel_edge::PANEL_TOP;
-    case AGL_SHELL_PANEL_BOTTOM:
+    case BOTTOM:
         return ::panel_edge::PANEL_BOTTOM;
-    case AGL_SHELL_PANEL_LEFT:
+    case LEFT:
         return ::panel_edge::PANEL_LEFT;
-    case AGL_SHELL_PANEL_RIGHT:
+    case RIGHT:
         return ::panel_edge::PANEL_RIGHT;
     default:
         assert(!"Should not get here");
@@ -122,25 +123,25 @@ to_panel_edge(enum agl_shell_panel_edge edge)
     return ::panel_edge::PANEL_TOP;
 }
 
-static enum agl_shell_panel_edge
+static panelEdge 
 from_panel_edge(::panel_edge edge)
 {
 
     switch (edge) {
     case ::panel_edge::PANEL_TOP:
-        return AGL_SHELL_PANEL_TOP;
+        return TOP;
     case ::panel_edge::PANEL_BOTTOM:
-        return AGL_SHELL_PANEL_BOTTOM;
+        return BOTTOM;
     case ::panel_edge::PANEL_LEFT:
-        return AGL_SHELL_PANEL_LEFT;
+        return LEFT;
     case ::panel_edge::PANEL_RIGHT:
-        return AGL_SHELL_PANEL_RIGHT;
+        return RIGHT;
     default:
         assert(!"Should not get here");
     }
 
     assert(!"Should not get here");
-    return AGL_SHELL_PANEL_TOP;
+    return NONE;
 }
 
 
@@ -150,82 +151,104 @@ print_csurfaces(::CSurfaces surfaces)
     for (int i = 0; i < surfaces.surfaces_size(); i++) {
         const ::shell_surface &shsurf = surfaces.surfaces(i);
         ::surface_type s_type = shsurf.surface_type();
+
         if (s_type == ::surface_type::TYPE_BACKGROUND) {
-            LOG_DEBUG("got csurface type background");
+            LOG_DEBUG("csurface type background");
         } else if (s_type == ::surface_type::TYPE_PANEL) {
-            LOG_DEBUG("got csurface type panel");
+            LOG_DEBUG("csurface type panel");
         }
     }
 }
 
 static void
-print_surfaces(std::list<struct agl_shell_surface> surfaces)
+print_surfaces(std::list<AglShellSurface> surfaces)
 {
-    for (struct agl_shell_surface &s : surfaces) {
-        switch (s.surface_type) {
-        case AGL_SHELL_TYPE_BACKGROUND:
+    for (AglShellSurface &s : surfaces) {
+        Surface surface = s.getSurface();
+        switch (surface.getSurfaceType()) {
+        case BACKGROUND:
             LOG_DEBUG("shell surface is a background");
             break;
-        case AGL_SHELL_TYPE_PANEL:
+        case PANEL: {
+            Panel panel = s.getPanel();
             LOG_DEBUG("shell surface is a panel");
-            LOG_DEBUG("panel edge %d, width %d", s.panel.edge, s.panel.width);
+            LOG_DEBUG("panel edge %d, width %d", panel.getPanelEdge(),
+                                                 panel.getPanelWidth());
             break;
+        }
         }
     }
 }
 
 static void
-surfaces_to_csurfaces(::CSurfaces *surfaces_, std::list<struct agl_shell_surface> surfaces)
+surfaces_to_csurfaces(::CSurfaces *surfaces_, std::list<AglShellSurface> surfaces)
 {
 
-    for (struct agl_shell_surface s: surfaces) {
+    for (AglShellSurface s: surfaces) {
+        Surface surface = s.getSurface();
+        surfaceType sType = surface.getSurfaceType();
         ::shell_surface *sh_surf = surfaces_->add_surfaces();
 
-        switch (s.surface_type) {
-        case AGL_SHELL_TYPE_BACKGROUND:
+        switch (sType) {
+        case BACKGROUND:
             sh_surf->set_surface_type(::surface_type::TYPE_BACKGROUND);
-            sh_surf->set_src(s.src);
+            sh_surf->set_src(s.getSrc());
             LOG_DEBUG("Added background surface to CSurfaces");
             break;
-        case AGL_SHELL_TYPE_PANEL:
+        case PANEL: {
+            Panel panel = s.getPanel();
             sh_surf->set_surface_type(::surface_type::TYPE_PANEL);
 
             ::shell_panel *sh_panel = sh_surf->mutable_panel();
-            sh_panel->set_width(s.panel.width);
-            sh_panel->set_edge(to_panel_edge(s.panel.edge));
+            sh_panel->set_width(panel.getPanelWidth());
+            /* convert from one to another */
+            sh_panel->set_edge(to_panel_edge(panel.getPanelEdge()));
 
-            sh_surf->set_src(s.src);
+            sh_surf->set_src(s.getSrc());
             LOG_DEBUG("Added panel surface to CSurfaces");
             break;
+        }
+
         }
     }
 }
 
 static void
-csurfaces_to_surfaces(::CSurfaces surfaces_, std::list<struct agl_shell_surface> *surfaces)
+csurfaces_to_surfaces(::CSurfaces surfaces_, std::list<AglShellSurface> *surfaces)
 {
     int i;
     for (i = 0; i < surfaces_.surfaces_size(); i++) {
         const ::shell_surface &s = surfaces_.surfaces(i);
-        struct agl_shell_surface shsurf;
+        AglShellSurface aglSurface;
+        Surface surface;
+
+        /* should be present in both cases */
+        aglSurface.setSrc(s.src());
 
         switch (s.surface_type()) {
         case ::surface_type::TYPE_BACKGROUND:
-            shsurf.surface_type = AGL_SHELL_TYPE_BACKGROUND;
-            shsurf.src = s.src();
+
+            surface.setSurfaceType(BACKGROUND);
+            aglSurface.setSurface(surface);
+
             LOG_DEBUG("Added csurface background");
             break;
-        case ::surface_type::TYPE_PANEL:
-            shsurf.surface_type = AGL_SHELL_TYPE_PANEL;
-            shsurf.panel.width = s.panel().width();
-            shsurf.panel.edge = from_panel_edge(s.panel().edge());
-            shsurf.src = s.src();
+        case ::surface_type::TYPE_PANEL: {
+            Panel panel;
+
+            surface.setSurfaceType(PANEL);
+            panel.setPanelWidth(s.panel().width());
+            panel.setPanelEdge(from_panel_edge(s.panel().edge()));
+
+            aglSurface.setSurface(surface);
+            aglSurface.setPanel(panel);
             LOG_DEBUG("Added csurface panel");
             break;
+        }
         default:
             assert(!"Invalid surface type\n");
         }
-        surfaces->push_back(shsurf);
+        surfaces->push_back(aglSurface);
     }
 }
 
@@ -279,7 +302,7 @@ public:
     return true;
   }
 
-  void sendMsg(int argc, const char **argv, std::list<struct agl_shell_surface> surfaces) {
+  void sendMsg(int argc, const char **argv, std::list<AglShellSurface> surfaces) {
     std::string cmd;
     for (int i = 0; i < argc; ++i)
         cmd.append(argv[i]).append(" ");
@@ -324,7 +347,7 @@ public:
 
       std::list<std::string> event_args;
 
-      std::list<struct agl_shell_surface> surfaces;
+      std::list<AglShellSurface> surfaces;
 
       char *tokenize = strdup(str);
       char *token = strtok(tokenize, " ");
@@ -423,7 +446,7 @@ bool WebAppManagerServiceAGL::isHostServiceRunning()
 }
 
 void WebAppManagerServiceAGL::launchOnHost(int argc, const char **argv,
-					   std::list<struct agl_shell_surface> surfaces)
+                                           std::list<AglShellSurface> surfaces)
 {
     LOG_DEBUG("Dispatching launchOnHost");
     socket_->sendMsg(argc, argv, surfaces);
@@ -432,14 +455,15 @@ void WebAppManagerServiceAGL::launchOnHost(int argc, const char **argv,
 void WebAppManagerServiceAGL::sendEvent(int argc, const char **argv)
 {
     LOG_DEBUG("Sending event");
-    std::list<struct agl_shell_surface> surfaces;
+
+    std::list<AglShellSurface> surfaces;
     socket_->sendMsg(argc, argv, surfaces);
 }
 
 void WebAppManagerServiceAGL::setStartupApplication(
     const std::string& startup_app_id,
     const std::string& startup_app_uri, int startup_app_surface_id,
-    int _width, int _height, std::list<struct agl_shell_surface> surfaces)
+    int _width, int _height, std::list<AglShellSurface> surfaces)
 {
 	startup_app_id_ = startup_app_id;
 	startup_app_uri_ = startup_app_uri;
