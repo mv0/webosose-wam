@@ -15,6 +15,7 @@
 #include "StringUtils.h"
 #include "WebAppManager.h"
 #include "WebAppManagerServiceAGL.h"
+#include "AglShellSurface.h"
 
 
 #define WEBAPP_CONFIG "config.xml"
@@ -68,28 +69,6 @@ is_activate_app(const std::vector<std::string>& args)
         }
     }
     return std::string();
-}
-
-void
-agl_shell_panel::to_edge(const char *_edge)
-{
-    if (!strcmp(_edge, "top"))
-        edge = AGL_SHELL_PANEL_TOP;
-    else if (!strcmp(_edge, "bottom"))
-        edge = AGL_SHELL_PANEL_BOTTOM;
-    else if (!strcmp(_edge, "left"))
-        edge = AGL_SHELL_PANEL_LEFT;
-    else if (!strcmp(_edge, "right"))
-        edge = AGL_SHELL_PANEL_RIGHT;
-    else
-        assert(!"Invalid edge detected");
-}
-
-void
-agl_shell_panel::init(const char *_edge, const char *_width)
-{
-    to_edge(_edge);
-    width = strtoul(_width, NULL, 10);
 }
 
 static bool isSharedBrowserProcess(const std::vector<std::string>& args) {
@@ -159,7 +138,7 @@ pid_t Launcher::find_surfpid_by_rid(pid_t app_pid)
 int
 SingleBrowserProcessWebAppLauncher::launch(const std::string& id,
                                            const std::string& uri,
-                                           std::list<struct agl_shell_surface> surfaces,
+                                           std::list<AglShellSurface> surfaces,
                                            const std::string& width,
                                            const std::string& height)
 {
@@ -178,7 +157,7 @@ int SingleBrowserProcessWebAppLauncher::loop(int argc, const char** argv, volati
 int
 SharedBrowserProcessWebAppLauncher::launch(const std::string& id,
                                            const std::string& uri,
-                                           std::list<struct agl_shell_surface> surfaces,
+                                           std::list<AglShellSurface> surfaces,
                                            const std::string& width,
                                            const std::string& height)
 {
@@ -409,8 +388,9 @@ WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
                 (const char *) xmlGetProp(node, (const xmlChar *) "role");
 
             if (!strcmp(c_surface_type, "panel")) {
-                struct agl_shell_surface surface;
-                struct agl_shell_panel panel;
+                AglShellSurface aglSurface;
+                Panel panel;
+                Surface surface;
 
                 xmlChar *width = xmlGetProp(node,  (const xmlChar *) "width");
                 xmlChar *source = xmlGetProp(node, (const xmlChar *) "src");
@@ -420,23 +400,31 @@ WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
                 assert(width);
                 assert(edge);
 
-                panel.init((const char *) edge, (const char *) width);
-                surface.panel = panel;
-                surface.src = std::string((char *) source);
-                surface.surface_type = AGL_SHELL_TYPE_PANEL;
-                surfaces.push_back(surface);
+                surface.SetSurfaceType(SurfaceType::PANEL);
+                panel.SetPanelEdge((const char *) edge);
+                panel.SetPanelWidth((const char *) width);
+
+                aglSurface.SetPanel(panel);
+                aglSurface.SetSurface(surface);
+                aglSurface.SetSrc(std::string((char *) source));
+
+                surfaces.push_back(aglSurface);
 
             } else if (!strcmp(c_surface_type, "background")) {
-                struct agl_shell_surface surface;
+                AglShellSurface aglSurface;
+                Panel panel;
+                Surface surface;
 
                 assert(!bg_found);
 
                 xmlChar *source = xmlGetProp(node, (const xmlChar *) "src");
                 assert(source);
 
-                surface.surface_type = AGL_SHELL_TYPE_BACKGROUND;
-                surface.src = std::string((char *) source);
-                surfaces.push_back(surface);
+                surface.SetSurfaceType(SurfaceType::BACKGROUND);
+                aglSurface.SetSurface(surface);
+                aglSurface.SetSrc(std::string((char *) source));
+
+                surfaces.push_back(aglSurface);
 
                 bg_found = true;
             }
