@@ -90,6 +90,40 @@ static bool isWaitForHostService(const std::vector<std::string>& args) {
   }
 }
 
+static std::string
+surface_compose_entry_point(std::string src, std::string host,
+							int port, std::string token)
+{
+	std::string entryPoint = std::string("http://");
+
+	entryPoint.append(host);
+	entryPoint.append(":");
+	entryPoint.append(std::to_string(port));
+
+	auto found = src.find("/");
+
+	if (found == std::string::npos) {
+		entryPoint.append("/");
+		entryPoint.append(src);
+		entryPoint.append("/");
+	} else {
+		if (found > 0) {
+			entryPoint.append("/");
+			entryPoint.append(src);
+		} else {
+			entryPoint.append("/");
+		}
+	}
+
+
+	entryPoint.append("index.html");
+	entryPoint.append("?token=");
+	entryPoint.append(token);
+
+	return entryPoint;
+}
+
+
 class AGLMainDelegateWAM : public webos::WebOSMainDelegate {
 public:
     void AboutToCreateContentBrowserClient() override {
@@ -391,6 +425,7 @@ WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
                 AglShellSurface aglSurface;
                 Panel panel;
                 Surface surface;
+                std::string entryPoint;
 
                 xmlChar *width = xmlGetProp(node,  (const xmlChar *) "width");
                 xmlChar *source = xmlGetProp(node, (const xmlChar *) "src");
@@ -408,12 +443,18 @@ WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
                 aglSurface.setSurface(surface);
                 aglSurface.setSrc(std::string((char *) source));
 
+                entryPoint =
+                    surface_compose_entry_point(aglSurface.getSrc(), m_host,
+                                                m_port, m_token);
+                aglSurface.setEntryPoint(entryPoint);
+
                 surfaces.push_back(aglSurface);
 
             } else if (!strcmp(c_surface_type, "background")) {
                 AglShellSurface aglSurface;
                 Panel panel;
                 Surface surface;
+                std::string entryPoint;
 
                 assert(!bg_found);
 
@@ -423,6 +464,11 @@ WebAppLauncherRuntime::parse_config_client_shell(xmlNode *root_node)
                 surface.setSurfaceType(BACKGROUND);
                 aglSurface.setSurface(surface);
                 aglSurface.setSrc(std::string((char *) source));
+
+                entryPoint =
+                    surface_compose_entry_point(aglSurface.getSrc(), m_host,
+                                                m_port, m_token);
+                aglSurface.setEntryPoint(entryPoint);
 
                 surfaces.push_back(aglSurface);
 

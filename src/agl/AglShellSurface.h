@@ -99,14 +99,15 @@ class AglShellSurface : public ShellSurface {
 public:
         AglShellSurface() {}
 
-        AglShellSurface(Surface sType, Panel pType, std::string source)
-            : m_surface(sType), m_panel(pType), m_src(source)
+        AglShellSurface(Surface sType, Panel pType, std::string source, std::string entryPoint)
+            : m_surface(sType), m_panel(pType), m_src(source), m_entryPoint(entryPoint)
         {
         }
 
         Surface getSurface() { return m_surface; }
         Panel getPanel() { return m_panel; }
         std::string getSrc() { return m_src; }
+        std::string getEntryPoint() { return m_entryPoint; }
 
         void setPanel(Panel _panel)
         {
@@ -121,10 +122,15 @@ public:
         {
             m_src = _src;
         }
+        void setEntryPoint(std::string _entryPoint)
+        {
+            m_entryPoint = _entryPoint;
+        }
 
 private:
         Surface m_surface;
         Panel m_panel;
         std::string m_src;
+        std::string m_entryPoint;
 };
 

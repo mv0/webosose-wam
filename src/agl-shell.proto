@@ -21,6 +21,7 @@ message shell_surface {
     surface_type surface_type = 1;
     shell_panel panel = 2;
     string src = 3;
+    string entryPoint = 4;
 };
 
 message CSurfaces {
