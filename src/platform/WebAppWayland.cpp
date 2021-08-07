@@ -36,12 +36,11 @@
 static int kLaunchFinishAssureTimeoutMs = 5000;
 
 WebAppWayland::WebAppWayland(const std::string& type,
-			     int surface_id,
+                             int surface_id,
                              int width, int height,
                              int displayId,
                              const std::string& location_hint,
-			     int surface_role,
-			     int panel_type)
+                             ShellSurface *surface)
     : WebAppBase()
     , m_appWindow(0)
     , m_windowType(type)
@@ -52,15 +51,16 @@ WebAppWayland::WebAppWayland(const std::string& type,
     , m_lostFocusBySetWindowProperty(false)
     , m_displayId(displayId)
     , m_locationHint(location_hint)
+    , m_surface(surface)
 {
-    init(width, height, surface_id, surface_role, panel_type);
+    init(width, height, surface_id);
 }
 
 WebAppWayland::WebAppWayland(const std::string& type, WebAppWaylandWindow* window,
                              int width, int height,
                              int displayId,
                              const std::string& location_hint,
-                             int surface_role, int panel_type)
+                             ShellSurface *surface)
     : WebAppBase()
     , m_appWindow(window)
     , m_windowType(type)
@@ -71,8 +71,9 @@ WebAppWayland::WebAppWayland(const std::string& type, WebAppWaylandWindow* windo
     , m_lostFocusBySetWindowProperty(false)
     , m_displayId(displayId)
     , m_locationHint(location_hint)
+    , m_surface(surface)
 {
-    init(width, height, 0, surface_role, panel_type);
+    init(width, height, 0);
 }
 
 WebAppWayland::~WebAppWayland()
@@ -101,36 +102,40 @@ static webos::WebAppWindowBase::LocationHint getLocationHintFromString(const std
     return hint;
 }
 
-bool
-WebAppWayland::isAglRoleType(void)
-{
-	return (m_surface_role == AGL_SHELL_TYPE_BACKGROUND) ||
-		(m_surface_role == AGL_SHELL_TYPE_PANEL);
-}
 
-void WebAppWayland::init(int width, int height, int surface_id,
-			 int surface_role, int panel_type)
+void WebAppWayland::init(int width, int height, int surface_id)
 {
     if (!m_appWindow)
         m_appWindow = WebAppWaylandWindow::take(surface_id);
     m_appWindow->SetWindowSurfaceId(surface_id);
-
-    if (surface_role == AGL_SHELL_TYPE_BACKGROUND) {
-	    m_appWindow->SetAglBackground();
-	    m_surface_role = AGL_SHELL_TYPE_BACKGROUND;
-    } else if (surface_role == AGL_SHELL_TYPE_PANEL) {
-	    m_appWindow->SetAglPanel(panel_type);
-	    m_surface_role = AGL_SHELL_TYPE_PANEL;
-    } else {
-	    m_surface_role = AGL_SHELL_TYPE_NONE;
-    }
 
     if (width == 0)
 	    width = m_appWindow->DisplayWidth();
     if (height == 0)
 	    height = m_appWindow->DisplayHeight();
 
-    LOG_DEBUG("Width %d, Height %d, Role: %d\n", width, height, m_surface_role);
+    LOG_DEBUG("Width %d, Height %d\n", width, height);
+
+    if (m_surface) {
+        LOG_DEBUG("surface %p\n", m_surface);
+
+        Surface surface = m_surface->getSurface();
+        surfaceType sType = surface.getSurfaceType();
+
+        switch (sType) {
+        case BACKGROUND:
+            m_appWindow->SetAglBackground();
+            break;
+        case PANEL: {
+            Panel panel = m_surface->getPanel();
+            m_appWindow->SetAglPanel(panel.getPanelEdge());
+            width = panel.getPanelWidth();
+            break;
+        }
+        default:
+            assert(!"Invalid type!\n");
+        }
+    }
 
     setUiSize(width, height);
     m_appWindow->InitWindow(width, height);

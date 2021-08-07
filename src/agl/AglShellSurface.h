@@ -25,75 +25,8 @@
 #pragma once
 
 #include <string>
-#include <cstring>
-
 #include "ShellSurface.h"
 
-enum panelEdge {
-    NONE,
-    TOP,
-    BOTTOM,
-    LEFT,
-    RIGHT
-};
-
-enum surfaceType {
-    BACKGROUND,
-    PANEL,
-};
-
-class Panel {
-public:
-        Panel() {}
-        Panel(panelEdge _edge) : m_edge(_edge)
-        {
-        }
-
-        panelEdge getPanelEdge() { return m_edge; }
-        int getPanelWidth() { return m_width; }
-        void setPanelEdge(panelEdge _edge) { m_edge = _edge; }
-        void setPanelWidth(int _width) { m_width = _width; }
-
-        /* conversion helpers */
-        void setPanelEdge(const char *_edge)
-        {
-            panelEdge edge;
-            if (!strcmp(_edge, "top"))
-                edge = TOP;
-            else if (!strcmp(_edge, "bottom"))
-                edge = BOTTOM;
-            else if (!strcmp(_edge, "left"))
-                edge = LEFT;
-            else if (!strcmp(_edge, "right"))
-                edge = RIGHT;
-            else
-                edge = NONE;
-
-            setPanelEdge(edge);
-        }
-
-        void setPanelWidth(const char *_width)
-        {
-            int width = strtoul(_width, NULL, 10);
-            setPanelWidth(width);
-        }
-private:
-        panelEdge m_edge;
-        int m_width;
-};
-
-class Surface {
-public:
-        Surface() {}
-        Surface(surfaceType sType) : m_type(sType)
-        {
-        }
-
-        surfaceType getSurfaceType() { return m_type; }
-        void setSurfaceType(surfaceType _type) { m_type = _type; }
-private:
-        surfaceType m_type;
-};
 
 class AglShellSurface : public ShellSurface {
 public:
