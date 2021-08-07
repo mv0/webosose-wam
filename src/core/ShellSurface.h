@@ -25,9 +25,79 @@
 #pragma once
 
 #include <string>
+#include <cstring>
 
-class Surface;
-class Panel;
+enum class PanelEdge : int {
+    NONE = -1,
+    TOP,
+    BOTTOM,
+    LEFT,
+    RIGHT
+};
+
+enum class SurfaceType : int {
+    BACKGROUND,
+    PANEL,
+};
+
+
+class Panel {
+public:
+        Panel() {}
+        Panel(PanelEdge edge) : m_edge(edge)
+        {
+        }
+
+        int GetPanelEdgeData() {
+            return static_cast<int>(m_edge);
+        }
+
+        PanelEdge GetPanelEdge() { return m_edge; }
+        int GetPanelWidth() { return m_width; }
+        void SetPanelEdge(PanelEdge edge) { m_edge = edge; }
+        void SetPanelWidth(int width) { m_width = width; }
+
+        /* conversion helpers */
+        void SetPanelEdge(const char *edge)
+        {
+            PanelEdge _edge;
+            if (!strcmp(edge, "top"))
+                _edge = PanelEdge::TOP;
+            else if (!strcmp(edge, "bottom"))
+                _edge = PanelEdge::BOTTOM;
+            else if (!strcmp(edge, "left"))
+                _edge = PanelEdge::LEFT;
+            else if (!strcmp(edge, "right"))
+                _edge = PanelEdge::RIGHT;
+            else
+                _edge = PanelEdge::NONE;
+
+            SetPanelEdge(_edge);
+        }
+
+	void SetPanelWidth(const char *width)
+        {
+            int _width = strtoul(width, NULL, 10);
+            SetPanelWidth(_width);
+        }
+private:
+        PanelEdge m_edge;
+        int m_width;
+};
+
+class Surface {
+public:
+        Surface() {}
+        Surface(SurfaceType sType) : m_type(sType)
+        {
+        }
+
+        SurfaceType GetSurfaceType() { return m_type; }
+        void SetSurfaceType(SurfaceType type) { m_type = type; }
+private:
+        SurfaceType m_type;
+};
+
 
 class ShellSurface {
 public:

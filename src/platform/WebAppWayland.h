@@ -22,30 +22,11 @@
 #include "WebAppBase.h"
 
 #include "WebPageBlinkObserver.h"
+#include "ShellSurface.h"
 
 #include "webos/common/webos_constants.h"
 #include "webos/common/webos_event.h"
 #include "webos/webos_platform.h"
-
-enum agl_shell_surface_type {
-	AGL_SHELL_TYPE_NONE,
-	AGL_SHELL_TYPE_DESKTOP,
-	AGL_SHELL_TYPE_BACKGROUND,
-	AGL_SHELL_TYPE_PANEL,
-	AGL_SHELL_TYPE_POPUP,
-	AGL_SHELL_TYPE_FULLSCREEN,
-	AGL_SHELL_TYPE_SPLIT_V,
-	AGL_SHELL_TYPE_SPLIT_H,
-	AGL_SHELL_TYPE_REMOTE
-};
-
-enum agl_shell_panel_type {
-	AGL_SHELL_PANEL_NOT_FOUND	= -1,
-	AGL_SHELL_PANEL_TOP,
-	AGL_SHELL_PANEL_BOTTOM,
-	AGL_SHELL_PANEL_LEFT,
-	AGL_SHELL_PANEL_RIGHT,
-};
 
 namespace Json {
 class Value;
@@ -77,22 +58,18 @@ public:
 		  int surface_id,
                   int width = 0, int height = 0,
                   int displayId = kUndefinedDisplayId,
-                  const std::string& location_hint = "",
-		  int surface_role = -1,
-		  int panel_type = -1);
+                  const std::string& location_hint = "", std::shared_ptr<ShellSurface> surface = nullptr);
     WebAppWayland(const std::string& type, WebAppWaylandWindow* window,
                   int width = 0, int height = 0,
                   int displayId = kUndefinedDisplayId,
-                  const std::string& location_hint = "",
-		  int surface_role = -1,
-		  int panel_type = -1);
+                  const std::string& location_hint = "", std::shared_ptr<ShellSurface> surface = nullptr);
 
     ~WebAppWayland() override;
 
     bool isAglRoleType();
 
     // WebAppBase
-    void init(int width, int height, int surface_id, int surface_role, int panel_type) override;
+    void init(int width, int height, int surface_id) override;
     void attach(WebPageBase*) override;
     WebPageBase* detach() override;
     void suspendAppRendering() override;
@@ -175,7 +152,6 @@ private:
     WebAppWaylandWindow* m_appWindow;
     std::string m_windowType;
     int m_lastSwappedTime;
-    int m_surface_role;
 
     std::vector<gfx::Rect> m_inputRegion;
     bool m_enableInputRegion;
@@ -190,6 +166,7 @@ private:
 
     int m_displayId;
     std::string m_locationHint;
+    std::shared_ptr<ShellSurface> m_surface;
 };
 
 #endif /* WEBAPPWAYLAND_H */
