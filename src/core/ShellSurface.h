@@ -35,4 +35,5 @@ public:
     virtual Surface GetSurface() = 0;
     virtual Panel GetPanel() = 0;
     virtual std::string GetSrc() = 0;
+    virtual std::string GetEntryPoint() = 0;
 };
