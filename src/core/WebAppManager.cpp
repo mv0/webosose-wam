@@ -287,8 +287,7 @@ WebAppBase* WebAppManager::onLaunchUrl(const std::string& url, const std::string
       page->setEnableBackgroundRun(appDesc->isEnableBackgroundRun());
 
     app->setAppDescription(appDesc);
-    if (!app->isAglRoleType())
-	    app->setAglAppId(appDesc->id().c_str());
+    app->setAglAppId(appDesc->id().c_str());
 
     app->setAppProperties(args);
     app->setInstanceId(instanceId);
@@ -302,8 +301,7 @@ WebAppBase* WebAppManager::onLaunchUrl(const std::string& url, const std::string
     webPageAdded(page);
 
     /* if the surface role is a background send ready to display them */
-    if (appDesc->surfaceRole() == 2) // TODO(rzanoni) change to the enum value
-	    app->sendAglReady();
+	/*FIXME: send it when the all the surfaces have been loaded  app->sendAglReady(); */
 
     m_appList.push_back(app);
 
