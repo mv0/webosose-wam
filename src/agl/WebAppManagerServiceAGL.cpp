@@ -193,6 +193,7 @@ surfaces_to_csurfaces(::CSurfaces *surfaces_, std::list<AglShellSurface> surface
 	case SurfaceType::BACKGROUND:
             sh_surf->set_surface_type(::surface_type::TYPE_BACKGROUND);
             sh_surf->set_src(s.GetSrc());
+            sh_surf->set_entrypoint(s.GetEntryPoint());
             LOG_DEBUG("Added background surface to CSurfaces");
             break;
 	case SurfaceType::PANEL: {
@@ -205,6 +206,7 @@ surfaces_to_csurfaces(::CSurfaces *surfaces_, std::list<AglShellSurface> surface
             sh_panel->set_edge(to_panel_edge(panel.GetPanelEdge()));
 
             sh_surf->set_src(s.GetSrc());
+            sh_surf->set_entrypoint(s.GetEntryPoint());
             LOG_DEBUG("Added panel surface to CSurfaces");
             break;
         }
@@ -224,6 +226,7 @@ csurfaces_to_surfaces(::CSurfaces surfaces_, std::list<AglShellSurface> *surface
 
         /* should be present in both cases */
         aglSurface.SetSrc(s.src());
+        aglSurface.SetEntryPoint(s.entrypoint());
 
         switch (s.surface_type()) {
         case ::surface_type::TYPE_BACKGROUND:
