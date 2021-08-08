@@ -26,12 +26,12 @@
 #include "LogManager.h"
 #include "Url.h"
 
-WebAppBase* WebAppFactoryAGL::createWebApp(const std::string& winType, std::shared_ptr<ApplicationDescription> desc)
+WebAppBase* WebAppFactoryAGL::createWebApp(const std::string& winType, std::shared_ptr<ApplicationDescription> desc, ShellSurface *surface)
 {
     WebAppBase* app = 0;
 
     if(winType == WT_CARD || winType == WT_POPUP || winType == WT_MINIMAL || winType == WT_FLOATING) {
-        app = new WebAppWaylandAGL(winType, desc);
+        app = new WebAppWaylandAGL(winType, desc, surface);
     } else if(winType == WT_OVERLAY) {
         app = new WebAppWayland(winType, desc->surfaceId());
     } else if(winType == WT_SYSTEM_UI) {
@@ -45,7 +45,7 @@ WebAppBase* WebAppFactoryAGL::createWebApp(const std::string& winType, std::shar
     return app;
 }
 
-WebAppBase* WebAppFactoryAGL::createWebApp(const std::string& winType, WebPageBase* page, std::shared_ptr<ApplicationDescription> desc)
+WebAppBase* WebAppFactoryAGL::createWebApp(const std::string& winType, WebPageBase* page, std::shared_ptr<ApplicationDescription> desc, ShellSurface *surface)
 {
     return createWebApp(winType, desc);
 }

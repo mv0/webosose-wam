@@ -26,7 +26,7 @@ class ApplicationDescription;
 
 class WebAppWaylandAGL : public WebAppWayland {
 public:
-    WebAppWaylandAGL(const std::string& winType, std::shared_ptr<ApplicationDescription> desc = 0);
+    WebAppWaylandAGL(const std::string& winType, std::shared_ptr<ApplicationDescription> desc = 0, ShellSurface *surface = 0);
 };
 
 #endif /* WEBAPPWAYLANDAGL_H */
