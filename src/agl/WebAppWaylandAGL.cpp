@@ -17,7 +17,7 @@
 #include "WebAppWaylandAGL.h"
 #include "ApplicationDescription.h"
 
-WebAppWaylandAGL::WebAppWaylandAGL(const std::string& winType, std::shared_ptr<ApplicationDescription> desc)
-  : WebAppWayland(winType, desc->surfaceId(), desc->widthOverride(), desc->heightOverride(), kUndefinedDisplayId, "")
+WebAppWaylandAGL::WebAppWaylandAGL(const std::string& winType, std::shared_ptr<ApplicationDescription> desc, std::shared_ptr<ShellSurface> surface)
+  : WebAppWayland(winType, desc->surfaceId(), desc->widthOverride(), desc->heightOverride(), kUndefinedDisplayId, "", surface)
 {
 }
