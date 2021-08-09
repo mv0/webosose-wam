@@ -405,9 +405,9 @@ public:
               print_surfaces(surfaces);
           }
 
-          WebAppManagerServiceAGL::instance()->setStartupApplication(
-                  arg1, arg2, arg3, arg4, arg5, surfaces);
-          WebAppManagerServiceAGL::instance()->triggerStartupApp();
+          WebAppManagerServiceAGL::StartupArgs *sargs =
+              new WebAppManagerServiceAGL::StartupArgs(arg1, arg2, arg3, arg4, arg5, surfaces);
+          WebAppManagerServiceAGL::instance()->triggerStartupApp(sargs);
       } else {
           WebAppManagerServiceAGL::instance()->setAppIdForEventTarget(event_args.front());
           WebAppManagerServiceAGL::instance()->triggetEventForApp(event);
@@ -500,22 +500,21 @@ bool WebAppManagerServiceAGL::startService()
       }
     }
 
-    triggerStartupApp();
-
     return true;
 }
 
-void WebAppManagerServiceAGL::triggerStartupApp()
+void
+WebAppManagerServiceAGL::triggerStartupApp(WebAppManagerServiceAGL::StartupArgs *sargs)
 {
-    LOG_DEBUG("Triggering app start: %s", startup_app_uri_.c_str());
-    if (!startup_app_uri_.empty()) {
-      if (startup_app_uri_.find("http://") == 0) {
-        startup_app_timer_.start(10, this,
-              &WebAppManagerServiceAGL::launchStartupAppFromURL);
-      } else {
-        startup_app_timer_.start(10, this,
-              &WebAppManagerServiceAGL::launchStartupAppFromConfig);
-      }
+    if (!sargs->GetAppUri().empty()) {
+	    OneShotTimerWithArg<WebAppManagerServiceAGL> *timer =
+		    new OneShotTimerWithArg<WebAppManagerServiceAGL>();
+
+            if (sargs->GetAppUri().find("http://") == 0) {
+                    timer->start(10, this, &WebAppManagerServiceAGL::launchStartupAppFromURL, sargs);
+            } else {
+                    timer->start(10, this, &WebAppManagerServiceAGL::launchStartupAppFromConfig, sargs);
+            }
     }
 }
 
@@ -537,9 +536,20 @@ void WebAppManagerServiceAGL::triggetEventForApp(const std::string& action) {
 
 void WebAppManagerServiceAGL::launchStartupAppFromConfig()
 {
+}
+
+void WebAppManagerServiceAGL::launchStartupAppFromConfig(void *data)
+{
     std::string configfile;
     configfile.append(startup_app_uri_);
-    configfile.append("/config.xml");
+
+    WebAppManagerServiceAGL::StartupArgs *sargs =
+        static_cast<WebAppManagerServiceAGL::StartupArgs *>(data);
+
+    if (!sargs)
+        return;
+
+    configfile.append(sargs->GetAppUri());
 
     xmlDoc *doc = xmlReadFile(configfile.c_str(), nullptr, 0);
     xmlNode *root = xmlDocGetRootElement(doc);
@@ -585,8 +595,8 @@ void WebAppManagerServiceAGL::launchStartupAppFromConfig()
     obj["title"] = (const char*)name;
     obj["uiRevision"] = "2";
     obj["icon"] = (const char*)icon;
-    obj["folderPath"] = startup_app_uri_.c_str();
-    obj["surfaceId"] = startup_app_surface_id_;
+    obj["folderPath"] = sargs->GetAppUri().c_str();
+    obj["surfaceId"] = sargs->GetSurfaceId();
 
     xmlFree(id);
     xmlFree(version);
@@ -606,39 +616,67 @@ void WebAppManagerServiceAGL::launchStartupAppFromConfig()
 
     std::list<std::shared_ptr<ShellSurface>> surfaces;
     WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg, surfaces);
+    delete sargs;
 }
+
 
 void WebAppManagerServiceAGL::launchStartupAppFromURL()
 {
+}
+
+void WebAppManagerServiceAGL::launchStartupAppFromURL(void *data)
+{
     LOG_DEBUG("WebAppManagerServiceAGL::launchStartupAppFromURL");
     LOG_DEBUG("    url: %s", startup_app_uri_.c_str());
+
+    WebAppManagerServiceAGL::StartupArgs *sargs =
+        static_cast<WebAppManagerServiceAGL::StartupArgs *>(data);
+
+    if (!sargs)
+        return;
+
+
     Json::Value obj(Json::objectValue);
-    obj["id"] = startup_app_id_;
+    obj["id"] = sargs->GetAppId();
     obj["version"] = "1.0";
     obj["vendor"] = "some vendor";
     obj["type"] = "web";
-    obj["main"] = startup_app_uri_;
+    obj["main"] = sargs->GetAppUri();
     obj["title"] = "webapp";
     obj["uiRevision"] = "2";
     //obj["icon"] = (const char*)icon;
     //obj["folderPath"] = startup_app_.c_str();
-    obj["surfaceId"] = startup_app_surface_id_;
+    obj["surfaceId"] = sargs->GetSurfaceId();
     //obj["surface_role"] = surface_role;
     //obj["panel_type"] = panel_type;
 
-    obj["widthOverride"] = width;
-    obj["heightOverride"] = height;
+    obj["widthOverride"] = sargs->GetWidth();
+    obj["heightOverride"] = sargs->GetHeight();
 
     std::string appDesc;
     dumpJsonToString(obj, appDesc);
-    std::string app_id = startup_app_id_;
+    std::string app_id = sargs->GetAppId();
     int errCode = 0;
     std::string params, errMsg;
 
     LOG_DEBUG("Launching with appDesc=[%s]", appDesc.c_str());
 
     std::list<std::shared_ptr<ShellSurface>> surfaces;
-    WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg, surfaces);
+    for (AglShellSurface &s : sargs->GetSurfaces()) {
+	std::shared_ptr<AglShellSurface> ssurf =
+		std::make_shared<AglShellSurface>();
+
+        ssurf->SetPanel(s.GetPanel());
+        ssurf->SetSurface(s.GetSurface());
+        ssurf->SetSrc(s.GetSrc());
+        ssurf->SetEntryPoint(s.GetEntryPoint());
+
+        surfaces.push_back(ssurf);
+    }
+
+    std::string ret = WebAppManagerService::onLaunch(appDesc, params, app_id,
+                                                     errCode, errMsg, surfaces);
+    delete sargs;
     LOG_DEBUG("onLaunch: Done.");
 }
 
