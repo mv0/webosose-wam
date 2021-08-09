@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "webos/webview_base.h"
+#include "ShellSurface.h"
 
 class ApplicationDescription;
 class DeviceInfo;
@@ -85,7 +86,8 @@ public:
         const std::string& params,
         const std::string& launchingAppId,
         int& errCode,
-        std::string& errMsg);
+        std::string& errMsg,
+        std::list<ShellSurface *> surfaces);
 
     std::vector<ApplicationInfo> list(bool includeSystemApps = false);
 
@@ -165,6 +167,7 @@ private:
     WebAppBase* onLaunchUrl(const std::string& url, const std::string& winType,
         const std::shared_ptr<ApplicationDescription> appDesc, const std::string& instanceId,
         const std::string& args, const std::string& launchingAppId,
+        ShellSurface *surface,
         int& errCode, std::string& errMsg);
 
     void onRelaunchApp(const std::string& instanceId, const std::string& appId,

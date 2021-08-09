@@ -21,15 +21,16 @@
 
 #include "LogManager.h"
 #include "WebAppBase.h"
+#include "ShellSurface.h"
 
 WebAppManagerService::WebAppManagerService()
 {
 }
 
 std::string WebAppManagerService::onLaunch(const std::string& appDescString, const std::string& params,
-        const std::string& launchingAppId, int& errCode, std::string& errMsg)
+        const std::string& launchingAppId, int& errCode, std::string& errMsg, std::list<ShellSurface *> surfaces)
 {
-    return WebAppManager::instance()->launch(appDescString, params, launchingAppId, errCode, errMsg);
+    return WebAppManager::instance()->launch(appDescString, params, launchingAppId, errCode, errMsg, surfaces);
 }
 
 bool WebAppManagerService::onKillApp(const std::string& appId, const std::string& instanceId, bool force)

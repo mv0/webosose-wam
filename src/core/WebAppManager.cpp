@@ -268,9 +268,10 @@ std::list<const WebAppBase*> WebAppManager::runningApps(uint32_t pid)
 WebAppBase* WebAppManager::onLaunchUrl(const std::string& url, const std::string& winType,
                                        const std::shared_ptr<ApplicationDescription> appDesc, const std::string& instanceId,
                                        const std::string& args, const std::string& launchingAppId,
+                                       ShellSurface *surface,
                                        int& errCode, std::string& errMsg)
 {
-    WebAppBase* app = WebAppFactoryManager::instance()->createWebApp(winType, appDesc, appDesc->subType());
+    WebAppBase* app = WebAppFactoryManager::instance()->createWebApp(winType, appDesc, appDesc->subType(), surface);
 
     if (!app) {
         errCode = ERR_CODE_LAUNCHAPP_UNSUPPORTED_TYPE;
@@ -633,8 +634,11 @@ void WebAppManager::killCustomPluginProcess(const std::string& basePath)
  * @todo: this should now be moved private and be protected...leaving it for now as to not break stuff and make things
  * slightly faster for intra-sysmgr mainloop launches
  */
-std::string WebAppManager::launch(const std::string& appDescString, const std::string& params,
-        const std::string& launchingAppId, int& errCode, std::string& errMsg)
+std::string WebAppManager::launch(const std::string& appDescString,
+                                  const std::string& params,
+                                  const std::string& launchingAppId,
+                                  int& errCode, std::string& errMsg,
+                                  std::list<ShellSurface *> surfaces)
 {
     LOG_DEBUG("Begin");
     std::shared_ptr<ApplicationDescription> desc(ApplicationDescription::fromJsonString(appDescString.c_str()));
@@ -643,7 +647,6 @@ std::string WebAppManager::launch(const std::string& appDescString, const std::s
     if (!desc)
         return std::string();
 
-    std::string url = desc->entryPoint();
     std::string winType = windowTypeFromString(desc->defaultWindowType());
     errMsg.erase();
 
@@ -666,9 +669,21 @@ std::string WebAppManager::launch(const std::string& appDescString, const std::s
         onRelaunchApp(instanceId, desc->id().c_str(), params.c_str(), launchingAppId.c_str());
     } else {
        // Run as a normal app
-        LOG_DEBUG("normal app url=[%s] instanceId=[%s]", url.c_str(), instanceId.c_str());
-        if (!onLaunchUrl(url, winType, desc, instanceId, params, launchingAppId, errCode, errMsg)) {
-            return std::string();
+        if (surfaces.empty()) {
+            std::string url = desc->entryPoint();
+            LOG_DEBUG("normal app url=[%s] instanceId=[%s]", url.c_str(), instanceId.c_str());
+            if (!onLaunchUrl(url, winType, desc, instanceId, params, launchingAppId, nullptr, errCode, errMsg)) {
+                return std::string();
+            }
+        } else {
+                for (ShellSurface *surface: surfaces) {
+                        std::string url = surface->getSrc();
+                        std::string fakeUrl = surface->getEntryPoint();
+
+                        if (!onLaunchUrl(fakeUrl, winType, desc, instanceId, params, launchingAppId, surface, errCode, errMsg)) {
+                                return std::string();
+                        }
+                }
         }
     }
 

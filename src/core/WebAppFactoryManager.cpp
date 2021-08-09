@@ -37,21 +37,24 @@ WebAppFactoryInterface* WebAppFactoryManager::getInterfaceInstance(const std::st
 }
 
 WebAppBase* WebAppFactoryManager::createWebApp(const std::string& winType, std::shared_ptr<ApplicationDescription> desc,
-                                               const std::string& appType)
+                                               const std::string& appType,
+                                               ShellSurface *surface)
 {
     WebAppFactoryInterface* interface = getInterfaceInstance(appType);
     if (interface)
-        return interface->createWebApp(winType, desc);
+        return interface->createWebApp(winType, desc, surface);
 
     return nullptr;
 }
 
 WebAppBase* WebAppFactoryManager::createWebApp(const std::string& winType, WebPageBase* page,
-                                               std::shared_ptr<ApplicationDescription> desc, const std::string& appType)
+                                               std::shared_ptr<ApplicationDescription> desc,
+                                               const std::string& appType,
+                                               ShellSurface *surface)
 {
     WebAppFactoryInterface* interface = getInterfaceInstance(appType);
     if (interface)
-        return interface->createWebApp(winType, page, desc);
+        return interface->createWebApp(winType, page, desc, surface);
 
     return nullptr;
 }

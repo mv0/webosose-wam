@@ -31,9 +31,9 @@ public:
     virtual ~WebAppFactoryManager();
 
     WebAppBase* createWebApp(const std::string& winType, std::shared_ptr<ApplicationDescription> desc = 0,
-                             const std::string& appType = "");
+                             const std::string& appType = "", ShellSurface *surface = 0);
     WebAppBase* createWebApp(const std::string& winType, WebPageBase* page, std::shared_ptr<ApplicationDescription> desc = 0,
-                             const std::string& appType = "");
+                             const std::string& appType = "", ShellSurface *surface = 0);
     WebPageBase* createWebPage(const std::string& winType, const Url& url, std::shared_ptr<ApplicationDescription> desc,
                                const std::string& appType = "", const std::string& launchParams = "");
     WebAppFactoryInterface* getInterfaceInstance(const std::string& appType);

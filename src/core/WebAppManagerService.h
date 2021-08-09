@@ -71,7 +71,8 @@ protected:
         const std::string& params,
         const std::string& launchingAppId,
         int& errCode,
-        std::string& errMsg);
+        std::string& errMsg,
+        std::list<ShellSurface *> surfaces);
 
 
     bool onKillApp(const std::string& appId, const std::string& instanceId, bool force = false);

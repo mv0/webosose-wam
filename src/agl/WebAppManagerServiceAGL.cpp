@@ -603,7 +603,9 @@ void WebAppManagerServiceAGL::launchStartupAppFromConfig()
     std::string app_id = obj["id"].asString();
     int errCode = 0;
     std::string errMsg;
-    WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg);
+
+    std::list<ShellSurface *> surfaces;
+    WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg, surfaces);
 }
 
 void WebAppManagerServiceAGL::launchStartupAppFromURL()
@@ -635,7 +637,8 @@ void WebAppManagerServiceAGL::launchStartupAppFromURL()
 
     LOG_DEBUG("Launching with appDesc=[%s]", appDesc.c_str());
 
-    WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg);
+    std::list<ShellSurface *> surfaces;
+    WebAppManagerService::onLaunch(appDesc, params, app_id, errCode, errMsg, surfaces);
     LOG_DEBUG("onLaunch: Done.");
 }
 
