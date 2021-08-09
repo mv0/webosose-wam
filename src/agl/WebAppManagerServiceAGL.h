@@ -19,6 +19,25 @@ class WamSocketLockFile;
 class WebAppManagerServiceAGL : public WebAppManagerService {
 public:
     static WebAppManagerServiceAGL* instance();
+    class StartupArgs {
+    public:
+       StartupArgs(std::string _app_id, std::string _app_uri,
+                   int _surface_id, int _width, int _height,
+                   std::list<AglShellSurface> _surfaces) :
+                   app_id(_app_id), app_uri(_app_uri), surface_id(_surface_id),
+                   width(_width), height(_height), surfaces(_surfaces)
+        {
+        }
+
+       std::string app_id;
+       std::string app_uri;
+       int surface_id;
+
+       int width;
+       int height;
+
+       std::list<AglShellSurface> surfaces;
+    };
 
     bool initializeAsHostService();
     bool initializeAsHostClient();
@@ -27,7 +46,7 @@ public:
 
     void setStartupApplication(const std::string& startup_app_id,
         const std::string& startup_app_uri, int startup_app_surface_id,
-	int _width, int _height, std::list<AglShellSurface> surfaces);
+        int _width, int _height, std::list<AglShellSurface> surfaces);
     void setAppIdForEventTarget(const std::string& app_id);
 
     void launchOnHost(int argc, const char **argv, std::list<AglShellSurface> surfaces);
@@ -47,15 +66,15 @@ public:
     Json::Value clearBrowsingData(const Json::Value &request) override;
     Json::Value webProcessCreated(const Json::Value &request, bool subscribed) override;
 
-    void triggerStartupApp();
+    void triggerStartupApp(StartupArgs *sargs);
     void triggetEventForApp(const std::string& action);
 
 private:
 
     WebAppManagerServiceAGL();
 
-    void launchStartupAppFromConfig();
-    void launchStartupAppFromURL();
+    void launchStartupAppFromConfig(void *data);
+    void launchStartupAppFromURL(void *data);
 
     void onActivateEvent();
     void onDeactivateEvent();

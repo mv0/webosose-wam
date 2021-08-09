@@ -82,8 +82,53 @@ private:
     ReceiverMethod m_method;
 };
 
+template <class Receiver, bool kIsRepeating>
+class ArgBaseTimer : public Timer {
+public:
+    typedef void (Receiver::*ReceiverMethod)(void *data);
+
+    ArgBaseTimer()
+        : Timer(kIsRepeating)
+          , m_data(nullptr)
+          , m_receiver(nullptr)
+          , m_method(nullptr)
+    {
+    }
+
+    ~ArgBaseTimer() override
+    {
+        if (isRunning())
+            stop();
+    }
+
+    void handleCallback() override
+    {
+        running(kIsRepeating);
+        (m_receiver->*m_method)(m_data);
+    }
+
+    void start(int delayInMilliSeconds, Receiver *receiver, ReceiverMethod method,
+               void *data = nullptr, bool willDestroy = false)
+    {
+        m_receiver = receiver;
+        m_method = method;
+        m_data = data;
+
+        Timer::start(delayInMilliSeconds, willDestroy);
+    }
+
+private:
+    void *m_data;
+    Receiver* m_receiver;
+    ReceiverMethod m_method;
+};
+
 template <class Receiver>
 class OneShotTimer : public BaseTimer<Receiver, false> {
+};
+
+template <class Receiver>
+class ArgOneShotTimer : public ArgBaseTimer<Receiver, false> {
 };
 
 template <class Receiver>
