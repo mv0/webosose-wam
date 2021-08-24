@@ -9,6 +9,7 @@
 
 #include "WebRuntime.h"
 #include "AglShellSurface.h"
+#include "Timer.h"
 #include <libxml/parser.h>
 
 class LibHomeScreen;
@@ -31,6 +32,9 @@ class SharedBrowserProcessWebAppLauncher : public Launcher {
 public:
   int launch(const std::string& id, const std::string& uri, std::list<AglShellSurface> surfaces, const std::string& width, const std::string& height) override;
   int loop(int argc, const char** argv, volatile sig_atomic_t& e_flag) override;
+  void send_ready();
+  OneShotTimer<SharedBrowserProcessWebAppLauncher> ready_timer_;
+  std::string ready_timer_id_;
 };
 
 class SingleBrowserProcessWebAppLauncher : public Launcher {

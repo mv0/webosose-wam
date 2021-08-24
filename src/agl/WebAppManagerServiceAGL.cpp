@@ -350,8 +350,6 @@ public:
 
       std::list<std::string> event_args;
 
-      std::list<AglShellSurface> surfaces;
-
       char *tokenize = strdup(str);
       char *token = strtok(tokenize, " ");
       while (token) {
@@ -370,19 +368,22 @@ public:
 
       str++;
       std::string last_arg = std::string(str);
-      ::CSurfaces surfaces_;
-
-      bool parsed = surfaces_.ParseFromString(last_arg);
-      if (parsed) {
-          LOG_DEBUG("Serialized. Transfering to surfaces");
-          csurfaces_to_surfaces(surfaces_, &surfaces);
-          print_surfaces(surfaces);
-      }
 
       std::string event = event_args.front();
       event_args.pop_front();
 
       if (event == kStartApp) {
+
+          std::list<AglShellSurface> surfaces;
+          ::CSurfaces surfaces_;
+
+          bool parsed = surfaces_.ParseFromString(last_arg);
+          if (parsed) {
+              LOG_DEBUG("Serialized. Transfering to surfaces");
+              csurfaces_to_surfaces(surfaces_, &surfaces);
+              print_surfaces(surfaces);
+          }
+
           std::string arg1 = event_args.front();
           event_args.pop_front();
           std::string arg2 = event_args.front();
@@ -532,6 +533,9 @@ void WebAppManagerServiceAGL::triggetEventForApp(const std::string& action) {
   } else if (action == kKilledApp) {
     startup_app_timer_.start(1000, this,
           &WebAppManagerServiceAGL::onKillEvent);
+  } else if (action == kSendAglReady) {
+      ready_app_timer_.start(1000, this,
+          &WebAppManagerServiceAGL::onSendAglEvent);
   }
 }
 
@@ -744,3 +748,24 @@ void WebAppManagerServiceAGL::onKillEvent() {
   WebAppManager::instance()->onKillApp(app_id_event_target_, app_id_event_target_);
   app_id_event_target_.clear();
 }
+
+void
+WebAppManagerServiceAGL::onSendAglEvent()
+{
+    LOG_DEBUG("onSendAglEvent for app_id_event_target_ %s", app_id_event_target_.c_str());
+    if (app_id_event_target_.empty())
+        return;
+
+    WebAppBase* web_app = WebAppManager::instance()->findAppById(app_id_event_target_);
+    if (web_app) {
+        LOG_DEBUG("%s(): for app_id_event_target_ %s",
+                  __func__, app_id_event_target_.c_str());
+        WebPageBase *page = web_app->page();
+        if (page)
+                web_app->sendAglReady();
+
+    }
+
+    app_id_event_target_.clear();
+}
+
