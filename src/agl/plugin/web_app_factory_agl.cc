@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2021 LG Electronics, Inc.
+// Copyright (c) 2014-2022 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,16 +14,15 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include "web_app_factory_luna.h"
+#include "web_app_factory_agl.h"
 
-#include <string>
-
+#include "application_description.h"
 #include "log_manager.h"
 #include "plugin_interface.h"
-#include "util/url.h"
+#include "url.h"
 #include "web_app_base.h"
 #include "web_app_wayland.h"
-#include "web_app_wayland_webos.h"
+#include "web_app_wayland_agl.h"
 #include "web_page_base.h"
 #include "web_page_blink.h"
 #include "window_types.h"
@@ -31,24 +30,27 @@
 const char* kPluginApplicationType = "default";
 
 WebAppFactoryInterface* CreateInstance() {
-  return new WebAppFactoryLuna();
+  return new WebAppFactoryAGL();
 }
 
 void DeleteInstance(WebAppFactoryInterface* interface) {
   delete interface;
 }
 
-WebAppBase* WebAppFactoryLuna::CreateWebApp(
+WebAppBase* WebAppFactoryAGL::CreateWebApp(
     const std::string& win_type,
     std::shared_ptr<ApplicationDescription> desc) {
   WebAppBase* app = nullptr;
 
   if (win_type == kWtCard || win_type == kWtPopup || win_type == kWtMinimal ||
-      win_type == kWtFloating || win_type == kWtSystemUi) {
-    app = new WebAppWaylandWebOS(win_type, desc);
-  } else if (win_type == kWtOverlay || win_type == kWtNone) {
-    app = new WebAppWayland(win_type, desc->SurfaceId(), 0, 0,
-                            desc->GetDisplayAffinity());
+      win_type == kWtFloating) {
+    app = new WebAppWaylandAGL(win_type, desc);
+  } else if (win_type == kWtOverlay) {
+    app = new WebAppWayland(win_type, desc->SurfaceId());
+  } else if (win_type == kWtSystemUi) {
+    app = new WebAppWayland(win_type, desc->SurfaceId());
+  } else if (win_type == kWtNone) {
+    app = new WebAppWayland(win_type, desc->SurfaceId());
   } else {
     LOG_WARNING(MSGID_BAD_WINDOW_TYPE, 1,
                 PMLOGKS("WINDOW_TYPE", win_type.c_str()), "");
@@ -56,14 +58,14 @@ WebAppBase* WebAppFactoryLuna::CreateWebApp(
   return app;
 }
 
-WebAppBase* WebAppFactoryLuna::CreateWebApp(
+WebAppBase* WebAppFactoryAGL::CreateWebApp(
     const std::string& win_type,
     WebPageBase* page,
     std::shared_ptr<ApplicationDescription> desc) {
   return CreateWebApp(win_type, desc);
 }
 
-WebPageBase* WebAppFactoryLuna::CreateWebPage(
+WebPageBase* WebAppFactoryAGL::CreateWebPage(
     const wam::Url& url,
     std::shared_ptr<ApplicationDescription> desc,
     const std::string& launch_params) {

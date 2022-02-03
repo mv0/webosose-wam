@@ -27,7 +27,16 @@ find_package(PkgConfig REQUIRED)
 find_package(Boost COMPONENTS filesystem REQUIRED)
 pkg_search_module(GLIB REQUIRED glib-2.0)
 pkg_search_module(JSONCPP REQUIRED jsoncpp)
-pkg_search_module(LIBLUNAPREFS REQUIRED luna-prefs)
+
+if(OS_WEBOS)
+    set(DISABLE_PMLOG FALSE)
+    add_compile_definitions(OS_WEBOS)
+    pkg_search_module(LIBLUNAPREFS REQUIRED luna-prefs)
+elseif(OS_AGL)
+    set(DISABLE_PMLOG TRUE)
+    add_compile_definitions(OS_AGL)
+    pkg_search_module(LIBXML2 REQUIRED libxml-2.0)
+endif()
 
 if(DISABLE_PMLOG)
     message(STATUS "PMLog disabled")
@@ -41,23 +50,24 @@ if(WEBOS_LTTNG_ENABLED)
     add_compile_definitions(HAS_LTTNG)
 endif()
 
-webos_add_compiler_flags(ALL CXX -fno-rtti
-                                 -fno-exceptions
-                                 -Wall
-                                 -fpermissive
-                                 -funwind-tables
-                                 -std=c++14
-                                 -Wno-psabi
-                                 -Werror
+set(WAM_COMPILER_FLAGS -fno-rtti
+                       -fno-exceptions
+                       -Wall
+                       -fpermissive
+                       -funwind-tables
+                       -std=c++14
+                       -Wno-psabi
+                       -Werror
 )
-
+if(OS_WEBOS)
+    webos_add_compiler_flags(ALL CXX ${WAM_COMPILER_FLAGS})
+else()
+    add_compile_options(${WAM_COMPILER_FLAGS})
+endif()
 add_link_options(-Wl,--no-as-needed -Wno-psabi -rdynamic)
 
 add_subdirectory(core)
 add_subdirectory(platform)
-add_subdirectory(plugin)
-add_subdirectory(tests)
-add_subdirectory(testplugin)
 
 set(WAM_INCLUDE_DIRS
     ${GLIB_INCLUDE_DIRS}
@@ -68,11 +78,19 @@ set(WAM_INCLUDE_DIRS
 
 set(WAM_LIBS
     ${CHROMIUM_LDFLAGS}
-    ${LIBLUNAPREFS_LDFLAGS}
     ${PMLOGLIB_LDFLAGS}
     WebAppMgr
     WebAppMgrCore
 )
+
+if(OS_WEBOS)
+    add_subdirectory(plugin)
+    add_subdirectory(tests)
+    add_subdirectory(testplugin)
+        LIST(APPEND WAM_LIBS ${LIBLUNAPREFS_LDFLAGS})
+elseif(OS_AGL)
+    add_subdirectory(agl/plugin)
+endif()
 
 add_executable(${PROJECT_NAME} wam_main.cc)
 set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "WebAppMgr")

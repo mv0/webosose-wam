@@ -28,12 +28,7 @@ set(SOURCES
     webengine/web_page_blink.cc
     webengine/web_view_impl.cc
     ${WAM_ROOT_SOURCE_DIR}/webos/device_info_impl.cc
-    ${WAM_ROOT_SOURCE_DIR}/webos/palm_service_base.cc
     ${WAM_ROOT_SOURCE_DIR}/webos/platform_module_factory_impl.cc
-    ${WAM_ROOT_SOURCE_DIR}/webos/plugin_service_luna.cc
-    ${WAM_ROOT_SOURCE_DIR}/webos/service_sender_luna.cc
-    ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna.cc
-    ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna_impl.cc
 )
 
 set(HEADERS
@@ -54,12 +49,7 @@ set(HEADERS
     webengine/web_view_factory.h
     webengine/web_view_impl.h
     ${WAM_ROOT_SOURCE_DIR}/webos/device_info_impl.h
-    ${WAM_ROOT_SOURCE_DIR}/webos/palm_service_base.h
     ${WAM_ROOT_SOURCE_DIR}/webos/platform_module_factory_impl.h
-    ${WAM_ROOT_SOURCE_DIR}/webos/plugin_service_luna.h
-    ${WAM_ROOT_SOURCE_DIR}/webos/service_sender_luna.h
-    ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna.h
-    ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna_impl.h
 )
 
 set(WAM_LIB_INCLUDE_DIRS
@@ -67,7 +57,6 @@ set(WAM_LIB_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/webengine
     ${JSONCPP_INCLUDE_DIRS}
-    ${LIBLUNAPREFS_INCLUDE_DIRS}
     ${WAM_ROOT_SOURCE_DIR}/core
     ${WAM_ROOT_SOURCE_DIR}/util
     ${WAM_ROOT_SOURCE_DIR}/webos
@@ -75,10 +64,43 @@ set(WAM_LIB_INCLUDE_DIRS
 
 set(WAM_LIB_LIBS
     ${JSONCPP_LDFLAGS}
-    ${LIBLUNAPREFS_LDFLAGS}
     WebAppMgrCore
-    lunaservice
 )
+
+if (OS_WEBOS)
+    LIST(APPEND SOURCES
+        ${WAM_ROOT_SOURCE_DIR}/webos/palm_service_base.cc
+        ${WAM_ROOT_SOURCE_DIR}/webos/plugin_service_luna.cc
+        ${WAM_ROOT_SOURCE_DIR}/webos/service_sender_luna.cc
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna.cc
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna_impl.cc
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_runtime_webos.cc
+    )
+    LIST(APPEND HEADERS
+        ${WAM_ROOT_SOURCE_DIR}/webos/palm_service_base.h
+        ${WAM_ROOT_SOURCE_DIR}/webos/plugin_service_luna.h
+        ${WAM_ROOT_SOURCE_DIR}/webos/service_sender_luna.h
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna.h
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_app_manager_service_luna_impl.h
+        ${WAM_ROOT_SOURCE_DIR}/webos/web_runtime_webos.h
+    )
+    LIST(APPEND WAM_LIB_INCLUDE_DIRS ${LIBLUNAPREFS_INCLUDE_DIRS})
+    LIST(APPEND WAM_LIB_LIBS
+        ${LIBLUNAPREFS_LDFLAGS}
+        lunaservice
+    )
+elseif(OS_AGL)
+    LIST(APPEND SOURCES
+        ${WAM_ROOT_SOURCE_DIR}/agl/web_app_manager_service_agl.cc
+        ${WAM_ROOT_SOURCE_DIR}/agl/web_runtime_agl.cc
+    )
+    LIST(APPEND HEADERS
+        ${WAM_ROOT_SOURCE_DIR}/agl/web_app_manager_service_agl.h
+        ${WAM_ROOT_SOURCE_DIR}/agl/web_runtime_agl.h
+    )
+    LIST(APPEND WAM_LIB_INCLUDE_DIRS ${LIBXML2_INCLUDE_DIRS})
+    LIST(APPEND WAM_LIB_LIBS ${LIBXML2_LDFLAGS})
+endif()
 
 add_library(${PROJECT_NAME} SHARED ${HEADERS} ${SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${WAM_LIB_INCLUDE_DIRS})
@@ -88,5 +110,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION "1.0.0" SOVERSION "1.0"
 install(TARGETS ${PROJECT_NAME} DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${HEADERS} DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/webappmanager)
 
-set(PKGCONFIG_WAM_LIBS "-l${PROJECT_NAME}")
-webos_build_pkgconfig(${CMAKE_SOURCE_DIR}/files/pkgconfig/WebAppMgr)
+if(OS_WEBOS)
+    set(PKGCONFIG_WAM_LIBS "-l${PROJECT_NAME}")
+    webos_build_pkgconfig(${CMAKE_SOURCE_DIR}/files/pkgconfig/WebAppMgr)
+endif()

@@ -42,6 +42,7 @@ set(SOURCES
 )
 
 set(HEADERS
+    agl_shell_types.h
     application_description.h
     device_info.h
     palm_system_base.h
@@ -113,5 +114,7 @@ set_target_properties(${PROJECT_NAME} PROPERTIES VERSION "1.0.0" SOVERSION "1.0"
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES ${HEADERS} DESTINATION include/webappmanager)
 
-set(PKGCONFIG_WAM_CORE_LIBS "-l${PROJECT_NAME}")
-webos_build_pkgconfig(${CMAKE_SOURCE_DIR}/files/pkgconfig/WebAppMgrCore)
+if(OS_WEBOS)
+    set(PKGCONFIG_WAM_CORE_LIBS "-l${PROJECT_NAME}")
+    webos_build_pkgconfig(${CMAKE_SOURCE_DIR}/files/pkgconfig/WebAppMgrCore)
+endif()

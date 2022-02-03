@@ -19,8 +19,11 @@
 #include "blink_web_process_manager.h"
 #include "device_info_impl.h"
 #include "platform_module_factory_impl.h"
-#include "service_sender_luna.h"
 #include "web_app_manager_config.h"
+
+#if defined(OS_WEBOS)
+#include "service_sender_luna.h"
+#endif
 
 PlatformModuleFactoryImpl::PlatformModuleFactoryImpl() {
   PrepareRenderingContext();
@@ -28,7 +31,11 @@ PlatformModuleFactoryImpl::PlatformModuleFactoryImpl() {
 
 std::unique_ptr<ServiceSender>
 PlatformModuleFactoryImpl::CreateServiceSender() {
+#if defined(OS_WEBOS)
   return std::unique_ptr<ServiceSenderLuna>(new ServiceSenderLuna());
+#else
+  return nullptr;
+#endif
 }
 
 std::unique_ptr<WebProcessManager>

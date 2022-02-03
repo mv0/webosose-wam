@@ -158,3 +158,33 @@ void WebAppWindowImpl::AttachWebContents(void* web_contents) {
 bool WebAppWindowImpl::Event(WebOSEvent* event) {
   return window_ ? window_->event(event) : false;
 }
+
+void WebAppWindowImpl::SetWindowSurfaceId(int surface_id) {
+  if (window_)
+    window_->SetWindowSurfaceId(surface_id);
+}
+
+void WebAppWindowImpl::SetAglBackground() {
+  if (window_)
+    window_->SetAglBackground();
+}
+
+void WebAppWindowImpl::SetAglPanel(int edge) {
+  if (window_)
+    window_->SetAglPanel(edge);
+}
+
+void WebAppWindowImpl::SetAglActivateApp(const char* app_id) {
+  if (window_)
+    window_->SetAglActivateApp(app_id);
+}
+
+void WebAppWindowImpl::SetAglReady() {
+  if (window_)
+    window_->SetAglReady();
+}
+
+void WebAppWindowImpl::SetAglAppId(const char* app_id) {
+  if (window_)
+    window_->SetAglAppId(app_id);
+}

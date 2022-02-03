@@ -22,21 +22,36 @@ set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_BUILD_TYPE Release)
 
-include(webOS/webOS)
 include(FindPkgConfig)
 
-# Usage of LTTNG lead to runtime error in the zygote process
-# due to creation of the additional threads.
-# So, it is supressed.
-# Cromium code at zygote_main_linux.cc contains following comment:
-# "Check that the pre-sandbox initialization didn't spawn threads.
-# It's not just our code which may do so - some system-installed libraries
-# are known to be culprits, e.g. lttng."
-unset(WEBOS_LTTNG_ENABLED CACHE)
+set(OS_WEBOS FALSE)
+set(OS_AGL FALSE)
+set(PLATFORM_NAME "WebOS" CACHE STRING "Target platform name (WebOS, POKY_AGL)")
+string(TOLOWER ${PLATFORM_NAME} PLATFORM)
+if(${PLATFORM} STREQUAL "webos")
+    set(OS_WEBOS TRUE)
+elseif(${PLATFORM} MATCHES ".*agl")
+    set(OS_AGL TRUE)
+else()
+    message(FATAL_ERROR "Unsupported platform: ${PLATFORM}")
+endif()
 
-webos_modules_init(1 6 3)
-webos_component(1 0 2)
+if(OS_WEBOS)
+    include(webOS/webOS)
 
-webos_build_system_bus_files(${CMAKE_SOURCE_DIR}/files/sysbus)
+    # Usage of LTTNG lead to runtime error in the zygote process
+    # due to creation of the additional threads.
+    # So, it is supressed.
+    # Cromium code at zygote_main_linux.cc contains following comment:
+    # "Check that the pre-sandbox initialization didn't spawn threads.
+    # It's not just our code which may do so - some system-installed libraries
+    # are known to be culprits, e.g. lttng."
+    unset(WEBOS_LTTNG_ENABLED CACHE)
+
+    webos_modules_init(1 6 3)
+    webos_component(1 0 2)
+
+    webos_build_system_bus_files(${CMAKE_SOURCE_DIR}/files/sysbus)
+endif()
 
 add_subdirectory(src)

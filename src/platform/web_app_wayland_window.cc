@@ -107,7 +107,9 @@ void WebAppWaylandWindow::SetCursor(const std::string& cursor_arg,
     type = webos::CUSTOM_CURSOR_PATH;
   }
 
+#if defined(OS_WEBOS)
   SetCustomCursor(type, arg, hotspot_x, hotspot_y);
+#endif
 
   if (type == webos::CUSTOM_CURSOR_BLANK)
     cursor_enabled_ = false;
@@ -337,9 +339,11 @@ void WebAppWaylandWindow::LogEventDebugging(WebOSEvent* event) {
 }
 
 void WebAppWaylandWindow::SendKeyCode(int key_code) {
+#if defined(OS_WEBOS)
   if (!xinput_activated_) {
     XInputActivate();
     xinput_activated_ = true;
   }
   XInputInvokeAction(key_code);
+#endif
 }

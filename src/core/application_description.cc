@@ -144,6 +144,13 @@ std::unique_ptr<ApplicationDescription> ApplicationDescription::FromJsonString(
   auto app_desc =
       std::unique_ptr<ApplicationDescription>(new ApplicationDescription());
 
+  app_desc->surface_id_ = json_obj["surfaceId"].asInt();
+  app_desc->surface_role_ =
+      static_cast<AglShellSurfaceType>(json_obj["surface_role"].asInt());
+  app_desc->panel_type_ =
+      static_cast<AglShellPanelEdge>(json_obj["panel_type"].asInt());
+  app_desc->width_override_ = json_obj["widthOverride"].asInt();
+  app_desc->height_override_ = json_obj["heightOverride"].asInt();
   app_desc->transparency_ = json_obj["transparent"].asBool();
   auto vendor_extension =
       json_obj.get("vendorExtension", Json::Value(Json::objectValue));

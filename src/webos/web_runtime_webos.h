@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2018 LG Electronics, Inc.
+// Copyright (c) 2021-2022 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <webos/app/webos_main.h>
+#ifndef WEBOS_WEB_RUNTIME_WEBOS_H_
+#define WEBOS_WEB_RUNTIME_WEBOS_H_
 
 #include "web_runtime.h"
 
-int main(int argc, const char** argv) {
-  std::unique_ptr<WebRuntime> web_runtime(WebRuntime::Create());
-  return web_runtime->Run(argc, argv);
-}
+class WebRuntimeWebOS : public WebRuntime {
+ public:
+  int Run(int argc, const char** argv) override;
+};
+
+#endif  // WEBOS_WEB_RUNTIME_WEBOS_H_

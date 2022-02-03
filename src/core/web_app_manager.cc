@@ -324,6 +324,8 @@ WebAppBase* WebAppManager::OnLaunchUrl(
     page->SetEnableBackgroundRun(app_desc->IsEnableBackgroundRun());
 
   app->SetAppDescription(app_desc);
+  if (!app->IsAglRoleType())
+    app->SetAglAppId(app_desc->Id().c_str());
   app->SetAppProperties(args);
   app->SetInstanceId(instance_id);
   app->SetLaunchingAppId(launching_app_id);
@@ -334,6 +336,10 @@ WebAppBase* WebAppManager::OnLaunchUrl(
 
   page->Load();
   WebPageAdded(page);
+
+  /* if the surface role is a background send ready to display them */
+  if (app_desc->SurfaceRole() == AglShellSurfaceType::kBackground)
+    app->SendAglReady();
 
   app_list_.push_back(app);
 
@@ -670,8 +676,11 @@ std::string WebAppManager::Launch(const std::string& app_desc_string,
                                   const std::string& launching_app_id,
                                   int& err_code,
                                   std::string& err_msg) {
+  LOG_DEBUG("Begin");
   std::shared_ptr<ApplicationDescription> desc(
       ApplicationDescription::FromJsonString(app_desc_string.c_str()));
+  LOG_DEBUG("parse app desc: Done");
+
   if (!desc)
     return std::string();
 
@@ -692,7 +701,12 @@ std::string WebAppManager::Launch(const std::string& app_desc_string,
   if (affinity.isInt())
     desc->SetDisplayAffinity(affinity.asInt());
 
-  std::string instance_id = json["instanceId"].asString();
+  // While we do not use multi-screen support, set instanceId == appId.
+  std::string instance_id = desc->Id();
+
+  LOG_DEBUG("windowType=[%s] Done", win_type.c_str());
+  LOG_DEBUG("trying to launch app: %s, surface: %d", desc->Id().c_str(),
+            desc->SurfaceId());
 
   // Check if app is already running
   if (IsRunningApp(instance_id)) {
@@ -700,11 +714,15 @@ std::string WebAppManager::Launch(const std::string& app_desc_string,
                   launching_app_id.c_str());
   } else {
     // Run as a normal app
+    LOG_DEBUG("normal app url=[%s] instanceId=[%s]", url.c_str(),
+              instance_id.c_str());
     if (!OnLaunchUrl(url, win_type, desc, instance_id, params, launching_app_id,
                      err_code, err_msg)) {
       return std::string();
     }
   }
+
+  LOG_DEBUG("Done.");
 
   return instance_id;
 }
