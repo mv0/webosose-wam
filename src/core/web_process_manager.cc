@@ -151,9 +151,9 @@ void WebProcessManager::ReadWebProcessPolicy() {
   LOG_INFO(
       MSGID_SET_WEBPROCESS_ENVIRONMENT, 3,
       PMLOGKFV("MAXIMUM_WEBPROCESS_NUMBER", "%u", maximum_number_of_processes_),
-      PMLOGKFV("GROUP_TRUSTLEVELS_COUNT", "%d",
+      PMLOGKFV("GROUP_TRUSTLEVELS_COUNT", "%zu",
                web_process_group_trust_level_list_.size()),
-      PMLOGKFV("GROUP_APP_IDS_COUNT", "%d",
+      PMLOGKFV("GROUP_APP_IDS_COUNT", "%zu",
                web_process_group_app_id_list_.size()),
       "");
 }

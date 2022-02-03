@@ -44,7 +44,9 @@ class DeviceInfoImpl : public DeviceInfo {
   std::string hardware_version_;
   std::string firmware_version_;
 
+#if defined(OS_WEBOS)
   bool GetInfoFromLunaPrefs(const char* key, std::string& value) const;
+#endif
   void InitDisplayInfo();
   void InitPlatformInfo();
   void GatherInfo();

@@ -22,6 +22,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "agl_shell_types.h"
 #include "display_id.h"
 
 class ApplicationDescription {
@@ -110,6 +111,9 @@ class ApplicationDescription {
   bool UseUnlimitedMediaPolicy() const { return use_unlimited_media_policy_; }
   const std::string& LocationHint() const { return location_hint_; }
 
+  AglShellSurfaceType SurfaceRole() const { return surface_role_; }
+  AglShellPanelEdge PanelType() const { return panel_type_; }
+
   struct WindowOwnerInfo {
     WindowOwnerInfo() : allow_anonymous(false) {}
 
@@ -139,6 +143,7 @@ class ApplicationDescription {
   int CustomSuspendDOMTime() const { return custom_suspend_dom_time_; }
   std::string MediaPreferences() const { return media_preferences_; }
   void SetMediaPreferences(const std::string& pref);
+  int SurfaceId() { return surface_id_; }
 
  private:
   bool CheckTrustLevel(std::string trust_level);
@@ -188,6 +193,10 @@ class ApplicationDescription {
   bool use_virtual_keyboard_;
   int custom_suspend_dom_time_;
   std::string media_preferences_;
+  int surface_id_;
+
+  AglShellSurfaceType surface_role_;
+  AglShellPanelEdge panel_type_;
 };
 
 #endif  // CORE_APPLICATION_DESCRIPTION_H_

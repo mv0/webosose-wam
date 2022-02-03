@@ -1,4 +1,4 @@
-// Copyright (c) 2015-2018 LG Electronics, Inc.
+// Copyright (c) 2008-2022 LG Electronics, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,11 +14,17 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-#include <webos/app/webos_main.h>
+#include "web_app_wayland_agl.h"
 
-#include "web_runtime.h"
+#include "application_description.h"
 
-int main(int argc, const char** argv) {
-  std::unique_ptr<WebRuntime> web_runtime(WebRuntime::Create());
-  return web_runtime->Run(argc, argv);
-}
+WebAppWaylandAGL::WebAppWaylandAGL(const std::string& win_type,
+                                   std::shared_ptr<ApplicationDescription> desc)
+    : WebAppWayland(win_type,
+                    desc->SurfaceId(),
+                    desc->WidthOverride(),
+                    desc->HeightOverride(),
+                    kUndefinedDisplayId,
+                    "",
+                    desc->SurfaceRole(),
+                    desc->PanelType()) {}

@@ -21,6 +21,7 @@ WebAppWaylandWebOS::WebAppWaylandWebOS(
     const std::string& win_type,
     std::shared_ptr<ApplicationDescription> desc)
     : WebAppWayland(win_type,
+                    desc->SurfaceId(),
                     desc->WidthOverride(),
                     desc->HeightOverride(),
                     desc->GetDisplayAffinity(),

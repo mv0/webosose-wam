@@ -63,6 +63,13 @@ class WebAppWindowImpl : public WebAppWindow {
   void AttachWebContents(void* web_contents) override;
   bool Event(WebOSEvent* event) override;
 
+  void SetWindowSurfaceId(int surface_id) override;
+  void SetAglBackground() override;
+  void SetAglPanel(int edge) override;
+  void SetAglActivateApp(const char* app_id) override;
+  void SetAglReady() override;
+  void SetAglAppId(const char* app_id) override;
+
   std::unique_ptr<WebAppWaylandWindow> window_;
 };
 

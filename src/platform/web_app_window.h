@@ -62,6 +62,13 @@ class WebAppWindow {
                          int hotspot_y) = 0;
   virtual void AttachWebContents(void* web_contents) = 0;
   virtual bool Event(WebOSEvent* event) = 0;
+
+  virtual void SetWindowSurfaceId(int surface_id) = 0;
+  virtual void SetAglBackground() = 0;
+  virtual void SetAglPanel(int edge) = 0;
+  virtual void SetAglActivateApp(const char* app_id) = 0;
+  virtual void SetAglReady() = 0;
+  virtual void SetAglAppId(const char* app_id) = 0;
 };
 
 #endif  // PLATFORM_WEB_APP_WINDOW_H_

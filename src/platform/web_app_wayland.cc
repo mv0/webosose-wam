@@ -23,6 +23,7 @@
 #include "webos/common/webos_constants.h"
 #include "webos/window_group_configuration.h"
 
+#include "agl_shell_types.h"
 #include "application_description.h"
 #include "log_manager.h"
 #include "utils.h"
@@ -72,10 +73,13 @@ webos::WebOSKeyMask GetKeyMask(const std::string& key) {
 }  // namespace
 
 WebAppWayland::WebAppWayland(const std::string& type,
+                             int surface_id,
                              int width,
                              int height,
                              int display_id,
-                             const std::string& location_hint)
+                             const std::string& location_hint,
+                             AglShellSurfaceType surface_role,
+                             AglShellPanelEdge panel_type)
     : WebAppBase(),
       app_window_(0),
       window_type_(type),
@@ -86,7 +90,7 @@ WebAppWayland::WebAppWayland(const std::string& type,
       lost_focus_by_set_window_property_(false),
       display_id_(display_id),
       location_hint_(location_hint) {
-  Init(width, height);
+  Init(width, height, surface_id, surface_role, panel_type);
 }
 
 WebAppWayland::WebAppWayland(const std::string& type,
@@ -94,7 +98,9 @@ WebAppWayland::WebAppWayland(const std::string& type,
                              int width,
                              int height,
                              int display_id,
-                             const std::string& location_hint)
+                             const std::string& location_hint,
+                             AglShellSurfaceType surface_role,
+                             AglShellPanelEdge panel_type)
     : WebAppBase(),
       app_window_(
           new WebAppWindowImpl(std::unique_ptr<WebAppWaylandWindow>(window))),
@@ -106,7 +112,7 @@ WebAppWayland::WebAppWayland(const std::string& type,
       lost_focus_by_set_window_property_(false),
       display_id_(display_id),
       location_hint_(location_hint) {
-  Init(width, height);
+  Init(width, height, 0, surface_role, panel_type);
 }
 
 WebAppWayland::WebAppWayland(const std::string& type,
@@ -114,7 +120,9 @@ WebAppWayland::WebAppWayland(const std::string& type,
                              int width,
                              int height,
                              int display_id,
-                             const std::string& location_hint)
+                             const std::string& location_hint,
+                             AglShellSurfaceType surface_role,
+                             AglShellPanelEdge panel_type)
     : WebAppBase(),
       app_window_(nullptr),
       window_type_(type),
@@ -126,7 +134,7 @@ WebAppWayland::WebAppWayland(const std::string& type,
       display_id_(display_id),
       location_hint_(location_hint),
       window_factory_(std::move(factory)) {
-  Init(width, height);
+  Init(width, height, 0, surface_role, panel_type);
 }
 
 WebAppWayland::~WebAppWayland() {
@@ -154,7 +162,21 @@ static webos::WebAppWindowBase::LocationHint GetLocationHintFromString(
   return hint;
 }
 
-void WebAppWayland::Init(int width, int height) {
+bool WebAppWayland::IsAglRoleType() {
+  switch (surface_role_) {
+    case AglShellSurfaceType::kBackground:
+    case AglShellSurfaceType::kPanel:
+      return true;
+    default:
+      return false;
+  }
+}
+
+void WebAppWayland::Init(int width,
+                         int height,
+                         int surface_id,
+                         AglShellSurfaceType surface_role,
+                         AglShellPanelEdge panel_type) {
   if (!app_window_) {
     if (window_factory_)
       app_window_ = window_factory_->CreateWindow();
@@ -162,14 +184,24 @@ void WebAppWayland::Init(int width, int height) {
       app_window_ = new WebAppWindowImpl(
           std::unique_ptr<WebAppWaylandWindow>(WebAppWaylandWindow::Take()));
   }
-  if (!(width && height)) {
-    SetUiSize(app_window_->DisplayWidth(), app_window_->DisplayHeight());
-    app_window_->InitWindow(app_window_->DisplayWidth(),
-                            app_window_->DisplayHeight());
-  } else {
-    SetUiSize(width, height);
-    app_window_->InitWindow(width, height);
+  app_window_->SetWindowSurfaceId(surface_id);
+
+  switch (surface_role) {
+    case AglShellSurfaceType::kBackground:
+      app_window_->SetAglBackground();
+      surface_role_ = surface_role;
+      break;
+    case AglShellSurfaceType::kPanel:
+      app_window_->SetAglPanel(static_cast<int>(panel_type));
+      surface_role_ = surface_role;
+    default:
+      surface_role_ = AglShellSurfaceType::kNone;
   }
+
+  LOG_DEBUG("Width %d, Height %d, Role: %d\n", width, height,
+            static_cast<int>(surface_role_));
+  SetUiSize(app_window_->DisplayWidth(), app_window_->DisplayHeight());
+  app_window_->InitWindow(width, height);
 
   webos::WebAppWindowBase::LocationHint locationHint =
       GetLocationHintFromString(location_hint_);
@@ -419,10 +451,12 @@ void WebAppWayland::SetKeyMask(webos::WebOSKeyMask key_mask, bool value) {
 }
 
 void WebAppWayland::ApplyInputRegion() {
+#if defined(OS_WEBOS)
   if (!enable_input_region_ && !input_region_.empty()) {
     enable_input_region_ = true;
     app_window_->SetInputRegion(input_region_);
   }
+#endif
 }
 
 void WebAppWayland::SetInputRegion(const Json::Value& value) {
@@ -438,7 +472,9 @@ void WebAppWayland::SetInputRegion(const Json::Value& value) {
     }
   }
 
+#if defined(OS_WEBOS)
   app_window_->SetInputRegion(input_region_);
+#endif
 }
 
 void WebAppWayland::SetWindowProperty(const std::string& name,
@@ -472,11 +508,15 @@ void WebAppWayland::SetKeyMask(const Json::Value& value) {
       keyMask |= GetKeyMask(child.asString());
   }
 
+#if defined(OS_WEBOS)
   app_window_->SetKeyMask(static_cast<webos::WebOSKeyMask>(keyMask));
+#endif
 }
 
 void WebAppWayland::SetKeyMask(webos::WebOSKeyMask keyMask) {
+#if defined(OS_WEBOS)
   app_window_->SetKeyMask(keyMask);
+#endif
 }
 
 void WebAppWayland::FocusOwner() {
@@ -835,7 +875,9 @@ void WebAppWayland::MoveInputRegion(int height) {
   }
   input_region_.clear();
   input_region_ = newRegion;
+#if defined(OS_WEBOS)
   app_window_->SetInputRegion(input_region_);
+#endif
 }
 
 void WebAppWayland::KeyboardVisibilityChanged(bool visible, int height) {
@@ -845,4 +887,17 @@ void WebAppWayland::KeyboardVisibilityChanged(bool visible, int height) {
 
 void WebAppWayland::SetUseVirtualKeyboard(const bool enable) {
   app_window_->SetUseVirtualKeyboard(enable);
+}
+
+void WebAppWayland::SendAglReady(void) {
+  app_window_->SetAglReady();
+}
+
+void WebAppWayland::SetAglAppId(const char* app_id) {
+  app_window_->SetAglAppId(app_id);
+}
+
+void WebAppWayland::SendAglActivate(const char* app_id) {
+  LOG_DEBUG("In WebAppWayland::sendAglActivate with app_id %s", app_id);
+  app_window_->SetAglActivateApp(app_id);
 }

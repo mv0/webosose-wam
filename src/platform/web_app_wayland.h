@@ -57,27 +57,41 @@ class InputManager : public webos::InputPointer {
 class WebAppWayland : public WebAppBase, WebPageBlinkObserver {
  public:
   WebAppWayland(const std::string& type,
+                int surface_id,
                 int width = 0,
                 int height = 0,
                 int displayId = kUndefinedDisplayId,
-                const std::string& location_hint = {});
+                const std::string& location_hint = {},
+                AglShellSurfaceType surface_role = AglShellSurfaceType::kNone,
+                AglShellPanelEdge panel_type = AglShellPanelEdge::kNotFound);
   WebAppWayland(const std::string& type,
                 WebAppWaylandWindow* window,
                 int width = 0,
                 int height = 0,
                 int displayId = kUndefinedDisplayId,
-                const std::string& location_hint = {});
+                const std::string& location_hint = {},
+                AglShellSurfaceType surface_role = AglShellSurfaceType::kNone,
+                AglShellPanelEdge panel_type = AglShellPanelEdge::kNotFound);
 
   WebAppWayland(const std::string& type,
                 std::unique_ptr<WebAppWindowFactory> factory,
                 int width = 0,
                 int height = 0,
                 int displayId = kUndefinedDisplayId,
-                const std::string& location_hint = {});
+                const std::string& location_hint = {},
+                AglShellSurfaceType surface_role = AglShellSurfaceType::kNone,
+                AglShellPanelEdge panel_type = AglShellPanelEdge::kNotFound);
 
   ~WebAppWayland() override;
 
+  bool IsAglRoleType();
+
   // WebAppBase
+  void Init(int width,
+            int height,
+            int surface_id,
+            AglShellSurfaceType surface_role,
+            AglShellPanelEdge panel_type) override;
   void Attach(WebPageBase*) override;
   WebPageBase* Detach() override;
   void SuspendAppRendering() override;
@@ -112,6 +126,10 @@ class WebAppWayland : public WebAppBase, WebPageBlinkObserver {
   bool IsKeyboardVisible() override;
   bool HideWindow() override;
   void SetUseVirtualKeyboard(const bool enable) override;
+
+  void SendAglReady() override;
+  void SetAglAppId(const char* app_id) override;
+  void SendAglActivate(const char* app_id) override;
 
   // WebAppWayland
   virtual void SetKeyMask(webos::WebOSKeyMask key_mask, bool value);
@@ -166,6 +184,7 @@ class WebAppWayland : public WebAppBase, WebPageBlinkObserver {
   std::string window_type_;
   int last_swapped_time_;
   bool did_activate_stage_ = false;
+  AglShellSurfaceType surface_role_;
 
   std::vector<gfx::Rect> input_region_;
   bool enable_input_region_;

@@ -20,6 +20,7 @@
 #include <memory>
 #include <string>
 
+#include "agl_shell_types.h"
 #include "web_app_manager.h"
 #include "web_page_observer.h"
 
@@ -44,6 +45,11 @@ class WebAppBase : public WebPageObserver {
   WebAppBase();
   ~WebAppBase() override;
 
+  virtual void Init(int width,
+                    int height,
+                    int surface_id,
+                    AglShellSurfaceType surface_role,
+                    AglShellPanelEdge panel_type) = 0;
   virtual void Attach(WebPageBase*);
   virtual WebPageBase* Detach();
   virtual void SuspendAppRendering() = 0;
@@ -88,6 +94,11 @@ class WebAppBase : public WebPageObserver {
   virtual bool IsKeyboardVisible() { return false; }
   static void OnCursorVisibilityChanged(const std::string& jsscript);
   virtual bool HideWindow() = 0;
+
+  virtual void SendAglReady() = 0;
+  virtual void SendAglActivate(const char* app_id) = 0;
+  virtual void SetAglAppId(const char* app_id) = 0;
+  virtual bool IsAglRoleType() = 0;
 
   bool GetCrashState() const;
   void SetCrashState(bool state);

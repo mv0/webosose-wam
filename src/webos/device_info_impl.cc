@@ -20,10 +20,13 @@
 
 #include <glib.h>
 #include <json/value.h>
-#include <lunaprefs.h>
 
 #include "log_manager.h"
 #include "utils.h"
+
+#if defined(OS_WEBOS)
+#include <lunaprefs.h>
+#endif
 
 DeviceInfoImpl::DeviceInfoImpl()
     : screen_width_(0),
@@ -68,6 +71,7 @@ void DeviceInfoImpl::Initialize() {
   SetDeviceInfo("SmartServiceCountry", smartservicecountry.c_str());
 }
 
+#if defined(OS_WEBOS)
 bool DeviceInfoImpl::GetInfoFromLunaPrefs(const char* key,
                                           std::string& value) const {
   char* str = 0;
@@ -81,6 +85,7 @@ bool DeviceInfoImpl::GetInfoFromLunaPrefs(const char* key,
   value = "Unknown";
   return false;
 }
+#endif
 
 void DeviceInfoImpl::InitDisplayInfo() {
   // Display information

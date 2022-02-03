@@ -915,6 +915,7 @@ void WebPageBlink::SetPageProperties() {
     page_private_->page_view_->SetTransparentBackground(true);
   }
 
+#if defined(OS_WEBOS) || defined(AGL_DEVEL)
   // set inspectable
   if (app_desc_->IsInspectable() || Inspectable()) {
     LOG_DEBUG(
@@ -924,6 +925,7 @@ void WebPageBlink::SetPageProperties() {
     page_private_->page_view_->SetInspectable(true);
     page_private_->page_view_->EnableInspectablePage();
   }
+#endif
 
   SetTrustLevel(DefaultTrustLevel());
   page_private_->page_view_->UpdatePreferences();
@@ -1097,6 +1099,7 @@ double WebPageBlink::DevicePixelRatio() {
 }
 
 void WebPageBlink::SetSupportDolbyHDRContents() {
+#if defined(OS_WEBOS)
   std::string support_dolby_hdr_contents;
   GetDeviceInfo("supportDolbyHDRContents", support_dolby_hdr_contents);
   LOG_INFO(MSGID_WAM_DEBUG, 3, PMLOGKS("APP_ID", AppId().c_str()),
@@ -1107,6 +1110,7 @@ void WebPageBlink::SetSupportDolbyHDRContents() {
   Json::Value preferences = util::StringToJson(app_desc_->MediaPreferences());
   preferences["supportDolbyHDR"] = support_dolby_hdr_contents == "true";
   app_desc_->SetMediaPreferences(util::JsonToString(preferences));
+#endif
 }
 
 void WebPageBlink::UpdateDatabaseIdentifier() {
@@ -1118,9 +1122,11 @@ void WebPageBlink::DeleteWebStorages(const std::string& identifier) {
 }
 
 void WebPageBlink::SetInspectorEnable() {
+#if defined(OS_WEBOS) || defined(AGL_DEVEL)
   LOG_DEBUG("[%s] Inspector enable", AppId().c_str());
   page_private_->page_view_->SetInspectable(true);
   page_private_->page_view_->EnableInspectablePage();
+#endif
 }
 
 void WebPageBlink::SetKeepAliveWebApp(bool keepAlive) {
