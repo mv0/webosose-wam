@@ -114,6 +114,8 @@ class ApplicationDescription {
   AglShellSurfaceType SurfaceRole() const { return surface_role_; }
   AglShellPanelEdge PanelType() const { return panel_type_; }
 
+  const std::set<std::string>& Extensions() const { return extensions_; }
+
   struct WindowOwnerInfo {
     WindowOwnerInfo() : allow_anonymous(false) {}
 
@@ -197,6 +199,7 @@ class ApplicationDescription {
 
   AglShellSurfaceType surface_role_;
   AglShellPanelEdge panel_type_;
+  std::set<std::string> extensions_;
 };
 
 #endif  // CORE_APPLICATION_DESCRIPTION_H_

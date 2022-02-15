@@ -944,6 +944,13 @@ void WebPageBlink::LoadExtension() {
   LOG_DEBUG("WebPageBlink::loadExtension(); Extension : webossystem");
   page_private_->page_view_->LoadExtension("webossystem");
   page_private_->page_view_->LoadExtension("webosservicebridge");
+
+  if (app_desc_) {
+    for (const auto& extension : app_desc_->Extensions()) {
+      page_private_->page_view_->LoadExtension(extension);
+      LOG_DEBUG("Loading extension %s", extension.c_str());
+    }
+  }
 }
 
 void WebPageBlink::ClearExtensions() {
