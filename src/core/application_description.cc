@@ -335,6 +335,14 @@ std::unique_ptr<ApplicationDescription> ApplicationDescription::FromJsonString(
   if (suspend_dom_time.isInt())
     app_desc->custom_suspend_dom_time_ = suspend_dom_time.asInt();
 
+  app_desc->extensions_.clear();
+  auto extensions_obj = json_obj["extensions"];
+  if (extensions_obj.isArray()) {
+    for (const auto& extension : extensions_obj) {
+      app_desc->extensions_.emplace(extension.asString());
+    }
+  }
+
   return app_desc;
 }
 

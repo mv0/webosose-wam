@@ -21,11 +21,13 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <algorithm>
 #include <cassert>
 #include <climits>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
+#include <set>
 #include <sstream>
 
 #include <json/value.h>
@@ -339,6 +341,8 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   xmlChar* author = nullptr;
   xmlChar* icon = nullptr;
 
+  std::set<std::string> extensions_list;
+
   id = xmlGetProp(root, (const xmlChar*)"id");
   version = xmlGetProp(root, (const xmlChar*)"version");
   for (xmlNode* node = root->children; node; node = node->next) {
@@ -352,6 +356,26 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
       description = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
     if (!xmlStrcmp(node->name, (const xmlChar*)"author"))
       author = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+    if (!xmlStrcmp(node->name, (const xmlChar*)"feature")) {
+      xmlChar* feature_name = xmlGetProp(node, (const xmlChar*)"name");
+      if (!xmlStrcmp(feature_name,
+                     (const xmlChar*)"urn:AGL:widget:required-api")) {
+        for (xmlNode* feature_child = node->children; feature_child;
+             feature_child = feature_child->next) {
+          if (!xmlStrcmp(feature_child->name, (const xmlChar*)"param")) {
+            xmlChar* param_name =
+                xmlGetProp(feature_child, (const xmlChar*)"name");
+            xmlChar* param_value =
+                xmlGetProp(feature_child, (const xmlChar*)"value");
+            if (!xmlStrcmp(param_value, (const xmlChar*)"injection"))
+              extensions_list.emplace((const char*)param_name);
+            xmlFree(param_name);
+            xmlFree(param_value);
+          }
+        }
+      }
+      xmlFree(feature_name);
+    }
   }
   fprintf(stdout, "...\n");
   LOG_DEBUG("id: %s", id);
@@ -373,6 +397,11 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   obj["icon"] = (const char*)icon;
   obj["folderPath"] = startup_app_uri_.c_str();
   obj["surfaceId"] = startup_app_surface_id_;
+  Json::Value extensions_obj(Json::arrayValue);
+  std::for_each(
+      extensions_list.cbegin(), extensions_list.cend(),
+      [&](const auto& extension) { extensions_obj.append(extension); });
+  obj["extensions"] = extensions_obj;
 
   xmlFree(id);
   xmlFree(version);
