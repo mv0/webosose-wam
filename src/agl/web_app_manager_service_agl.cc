@@ -340,6 +340,8 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   xmlChar* description = nullptr;
   xmlChar* author = nullptr;
   xmlChar* icon = nullptr;
+  xmlChar* width = nullptr;
+  xmlChar* height = nullptr;
 
   std::set<std::string> extensions_list;
 
@@ -356,6 +358,11 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
       description = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
     if (!xmlStrcmp(node->name, (const xmlChar*)"author"))
       author = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
+    if (!xmlStrcmp(node->name, (const xmlChar*)"window")) {
+      width = xmlGetProp(node, (const xmlChar*)"width");
+      height = xmlGetProp(node, (const xmlChar*)"height");
+    }
+
     if (!xmlStrcmp(node->name, (const xmlChar*)"feature")) {
       xmlChar* feature_name = xmlGetProp(node, (const xmlChar*)"name");
       if (!xmlStrcmp(feature_name,
@@ -397,11 +404,18 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   obj["icon"] = (const char*)icon;
   obj["folderPath"] = startup_app_uri_.c_str();
   obj["surfaceId"] = startup_app_surface_id_;
+  obj["surface_role"] = static_cast<int>(surface_role_);
+  obj["panel_type"] = static_cast<int>(panel_type_);
   Json::Value extensions_obj(Json::arrayValue);
   std::for_each(
       extensions_list.cbegin(), extensions_list.cend(),
       [&](const auto& extension) { extensions_obj.append(extension); });
   obj["extensions"] = extensions_obj;
+
+  if (width)
+    width_ = atoi((const char*)width);
+  if (height)
+    height_ = atoi((const char*)height);
 
   xmlFree(id);
   xmlFree(version);
@@ -410,6 +424,8 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   xmlFree(description);
   xmlFree(author);
   xmlFree(icon);
+  xmlFree(width);
+  xmlFree(height);
   xmlFreeDoc(doc);
 
   std::string app_desc = util::JsonToString(obj);

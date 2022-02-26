@@ -339,6 +339,8 @@ bool WebAppLauncherRuntime::Init() {
       role_ = "homescreen";
     else if (id_.rfind("webapps-homescreen", 0) == 0)
       role_ = "homescreen";
+    else if (id_.rfind("webapps-html5-background", 0) == 0)
+      role_ = "background";
     else {
       role_ = id_.substr(0, 12);
     }
