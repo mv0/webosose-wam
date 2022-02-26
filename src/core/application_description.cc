@@ -343,6 +343,13 @@ std::unique_ptr<ApplicationDescription> ApplicationDescription::FromJsonString(
     }
   }
 
+  if (json_obj["surface_role"].isInt())
+    app_desc->surface_role_ =
+        static_cast<AglShellSurfaceType>(json_obj["surface_role"].asInt());
+  if (json_obj["panel_type"].isInt())
+    app_desc->panel_type_ =
+        static_cast<AglShellPanelEdge>(json_obj["panel_type"].asInt());
+
   return app_desc;
 }
 

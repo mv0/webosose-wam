@@ -197,8 +197,8 @@ class ApplicationDescription {
   std::string media_preferences_;
   int surface_id_;
 
-  AglShellSurfaceType surface_role_;
-  AglShellPanelEdge panel_type_;
+  AglShellSurfaceType surface_role_ = AglShellSurfaceType::kNone;
+  AglShellPanelEdge panel_type_ = AglShellPanelEdge::kNotFound;
   std::set<std::string> extensions_;
 };
 
