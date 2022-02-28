@@ -417,6 +417,11 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
   if (height)
     height_ = atoi((const char*)height);
 
+  if (width_)
+    obj["widthOverride"] = width_;
+  if (height_)
+    obj["heightOverride"] = height_;
+
   xmlFree(id);
   xmlFree(version);
   xmlFree(name);

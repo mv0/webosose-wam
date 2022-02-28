@@ -198,6 +198,24 @@ void WebAppWayland::Init(int width,
       surface_role_ = AglShellSurfaceType::kNone;
   }
 
+  // Hack to force getting with panel the full width
+  if (panel_type != AglShellPanelEdge::kNotFound) {
+    switch (panel_type) {
+      case AglShellPanelEdge::kTop:
+      case AglShellPanelEdge::kBottom:
+        if (height > 0 && width == 0)
+          width = app_window_->DisplayWidth();
+        break;
+      case AglShellPanelEdge::kLeft:
+      case AglShellPanelEdge::kRight:
+        if (width > 0 && height == 0)
+          height = app_window_->DisplayHeight();
+        break;
+      case AglShellPanelEdge::kNotFound:
+        break;
+    }
+  }
+
   LOG_DEBUG("Width %d, Height %d, Role: %d\n", width, height,
             static_cast<int>(surface_role_));
   SetUiSize(app_window_->DisplayWidth(), app_window_->DisplayHeight());
