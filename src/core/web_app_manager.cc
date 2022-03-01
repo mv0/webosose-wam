@@ -324,8 +324,7 @@ WebAppBase* WebAppManager::OnLaunchUrl(
     page->SetEnableBackgroundRun(app_desc->IsEnableBackgroundRun());
 
   app->SetAppDescription(app_desc);
-  if (!app->IsAglRoleType())
-    app->SetAglAppId(app_desc->Id().c_str());
+  app->SetAglAppId(app_desc->Id().c_str());
   app->SetAppProperties(args);
   app->SetInstanceId(instance_id);
   app->SetLaunchingAppId(launching_app_id);
