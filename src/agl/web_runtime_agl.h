@@ -74,7 +74,6 @@ class WebAppLauncherRuntime : public WebRuntime {
   void SetupSignals();
 
   std::string id_;
-  std::string role_;
   std::string url_;
   std::string name_;
   std::string host_;
