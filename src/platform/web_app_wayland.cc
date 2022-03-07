@@ -194,6 +194,7 @@ void WebAppWayland::Init(int width,
     case AglShellSurfaceType::kPanel:
       app_window_->SetAglPanel(static_cast<int>(panel_type));
       surface_role_ = surface_role;
+      break;
     default:
       surface_role_ = AglShellSurfaceType::kNone;
   }
