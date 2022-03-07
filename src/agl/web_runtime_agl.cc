@@ -334,22 +334,11 @@ bool WebAppLauncherRuntime::Init() {
       return false;
     }
 
-    // Special cases for windowmanager roles
-    if (id_.rfind("webapps-html5-homescreen", 0) == 0)
-      role_ = "homescreen";
-    else if (id_.rfind("webapps-homescreen", 0) == 0)
-      role_ = "homescreen";
-    else if (id_.rfind("webapps-html5-background", 0) == 0)
-      role_ = "background";
-    else {
-      role_ = id_.substr(0, 12);
-    }
-
     LOG_DEBUG(
-        "id=[%s], name=[%s], role=[%s], url=[%s], host=[%s], port=%d, "
+        "id=[%s], name=[%s], url=[%s], host=[%s], port=%d, "
         "token=[%s], width=[%s], height[%s], surface_type[%d], panel_type[%d]",
-        id_.c_str(), name_.c_str(), role_.c_str(), url_.c_str(), host_.c_str(),
-        port_, token_.c_str(), width_.c_str(), height_.c_str(),
+        id_.c_str(), name_.c_str(), url_.c_str(), host_.c_str(), port_,
+        token_.c_str(), width_.c_str(), height_.c_str(),
         static_cast<int>(surface_type_), static_cast<int>(panel_type_));
 
     return true;
