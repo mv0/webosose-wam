@@ -412,10 +412,8 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
       [&](const auto& extension) { extensions_obj.append(extension); });
   obj["extensions"] = extensions_obj;
 
-  if (width)
-    width_ = atoi((const char*)width);
-  if (height)
-    height_ = atoi((const char*)height);
+  width_ = width ? atoi((const char*)width) : 0;
+  height_ = height ? atoi((const char*)height) : 0;
 
   if (width_)
     obj["widthOverride"] = width_;
