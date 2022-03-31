@@ -85,8 +85,6 @@ class WebAppLauncherRuntime : public WebRuntime {
       AglShellPanelEdge::kNotFound; /* only of surface_type is panel */
 
   int port_;
-  std::string token_;
-
   Launcher* launcher_;
 
   std::unordered_map<int, int> surfaces_;  // pair of <afm:rid, ivi:id>
