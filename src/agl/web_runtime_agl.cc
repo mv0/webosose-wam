@@ -302,25 +302,6 @@ bool WebAppLauncherRuntime::Init() {
       }
     }
 
-    bool url_misses_token = true;
-    if (url_match_result[7].length()) {
-      std::string query = url_match_result[7].str();
-      std::size_t n = query.find('=');
-      if (n != std::string::npos) {
-        token_ = query.substr(n + 1);
-        url_misses_token = false;
-      }
-    }
-    if (url_misses_token) {
-      std::string tokenv = util::GetEnvVar("CYNAGOAUTH_TOKEN");
-      if (!tokenv.empty()) {
-        token_ = tokenv;
-        url_.push_back(url_match_result[7].length() ? '&' : '?');
-        url_.append("token=");
-        url_.append(token_);
-      }
-    }
-
     std::string path = util::GetEnvVar("AFM_APP_INSTALL_DIR");
     if (path.empty()) {
       LOG_DEBUG("Please set AFM_APP_INSTALL_DIR");
@@ -336,9 +317,9 @@ bool WebAppLauncherRuntime::Init() {
 
     LOG_DEBUG(
         "id=[%s], name=[%s], url=[%s], host=[%s], port=%d, "
-        "token=[%s], width=[%s], height[%s], surface_type[%d], panel_type[%d]",
+        "width=[%s], height[%s], surface_type[%d], panel_type[%d]",
         id_.c_str(), name_.c_str(), url_.c_str(), host_.c_str(), port_,
-        token_.c_str(), width_.c_str(), height_.c_str(),
+        width_.c_str(), height_.c_str(),
         static_cast<int>(surface_type_), static_cast<int>(panel_type_));
 
     return true;
