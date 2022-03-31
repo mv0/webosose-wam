@@ -24,6 +24,43 @@
 #include "agl_shell_types.h"
 #include "web_runtime.h"
 
+class Args {
+ public:
+  enum flags {
+    FLAG_NONE = 0,
+    FLAG_APP_TYPE = 1 << 0,
+    FLAG_ACTIVATE_APP = 1 << 1,
+    FLAG_HTTP_LINK = 1 << 2,
+    FLAG_APP_ID = 1 << 3,
+    FLAG_APP_DIR = 1 << 4,
+  };
+
+  static Args* Instance() {
+    static Args* args = new Args();
+    return args;
+  }
+  void parse_args(int argc, const char** argv);
+
+  inline void set_flag(unsigned int flag) { flags |= flag; }
+
+  inline void clear_flag(unsigned int flag) { flags &= ~flag; }
+
+  inline bool is_set_flag(unsigned int flag) { return (flags & flag) == flag; }
+  void clear_cmdline(void);
+
+  std::string type_;
+  std::string activate_app_;
+  std::string http_link_;
+  std::string app_id_;
+  std::string app_dir_;
+
+ private:
+  uint32_t flags = FLAG_NONE;
+  void copy_cmdline(int argc, const char** argv);
+  char** new_argv;
+  int new_argc;
+};
+
 class Launcher {
  public:
   virtual int Launch(const std::string& id,
@@ -66,7 +103,7 @@ class WebAppLauncherRuntime : public WebRuntime {
   int Run(int argc, const char** argv) override;
 
  private:
-  bool Init();
+  bool Init(Args* args);
   bool InitWM();
   bool InitHS();
   int ParseConfig(const char* file);
