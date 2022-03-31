@@ -70,7 +70,6 @@ class WebAppLauncherRuntime : public WebRuntime {
   bool InitWM();
   bool InitHS();
   int ParseConfig(const char* file);
-  void SetupSurface(int id);
   void SetupSignals();
 
   std::string id_;
