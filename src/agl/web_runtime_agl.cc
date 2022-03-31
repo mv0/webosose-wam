@@ -16,6 +16,7 @@
 
 #include "web_runtime_agl.h"
 
+#include <getopt.h>
 #include <unistd.h>
 #include <cassert>
 #include <regex>
@@ -42,37 +43,27 @@ volatile sig_atomic_t e_flag = 1;
  *
  *   used to send data
  */
-static std::string GetAppId(const std::vector<std::string>& args) {
-  std::string afm_id = util::GetEnvVar("AFM_ID");
-  return afm_id.empty() ? args[0] : afm_id;
+static std::string GetAppId(Args* args, const char* app_afm_id) {
+  if (args->is_set_flag(Args::FLAG_APP_ID))
+    return args->app_id_;
+  return std::string(app_afm_id);
 }
 
-static std::string GetAppUrl(const std::vector<std::string>& args) {
-  for (const auto& arg : args) {
-    std::size_t found = arg.find(std::string("http://"));
-    if (found != std::string::npos)
-      return arg;
-  }
-  return util::GetEnvVar("AFM_APP_INSTALL_DIR");
+static std::string GetAppUrl(Args* args) {
+  if (args->is_set_flag(Args::FLAG_HTTP_LINK))
+    return args->http_link_;
+  return args->app_dir_;
 }
 
-static bool IsBrowserProcess(const std::vector<std::string>& args) {
-  std::string param("--type=");
-  // if type is not given then we are browser process
-  for (const auto& arg : args) {
-    std::size_t found = arg.find(param);
-    if (found != std::string::npos)
-      return false;
-  }
+static bool IsBrowserProcess(Args* args) {
+  if (args->is_set_flag(Args::FLAG_APP_TYPE))
+    return false;
   return true;
 }
 
-static std::string IsActivateApp(const std::vector<std::string>& args) {
-  for (const auto& arg : args) {
-    if (arg.find("--activate-app=") != std::string::npos) {
-      return arg;
-    }
-  }
+static std::string IsActivateApp(Args* args) {
+  if (args->is_set_flag(Args::FLAG_ACTIVATE_APP))
+    return args->activate_app_;
   return std::string();
 }
 
@@ -98,20 +89,18 @@ static enum AglShellPanelEdge GetSurfacePanelType(const char* panel_type) {
   return AglShellPanelEdge::kNotFound;
 }
 
-static bool IsSharedBrowserProcess(const std::vector<std::string>& args) {
-  if (!util::GetEnvVar("AFM_ID").empty())
+static bool IsSharedBrowserProcess(Args* args) {
+  if (args->is_set_flag(Args::FLAG_APP_ID))
     return false;
 
   // if 'http://' param is not present then assume shared browser process
-  for (const auto& arg : args) {
-    std::size_t found = arg.find(std::string("http://"));
-    if (found != std::string::npos)
-      return false;
-  }
+  if (args->is_set_flag(Args::FLAG_HTTP_LINK))
+    return false;
+
   return true;
 }
 
-static bool IsWaitForHostService(const std::vector<std::string>& args) {
+static bool IsWaitForHostService(void) {
   return util::GetEnvVar("WAIT_FOR_HOST_SERVICE") == "1";
 }
 
@@ -187,8 +176,7 @@ int SharedBrowserProcessWebAppLauncher::Loop(int argc,
   while (e_flag)
     sleep(1);
 
-  std::vector<std::string> args(argv + 1, argv + argc);
-  std::string app_id = GetAppId(args);
+  std::string app_id = GetAppId(Args::Instance(), argv[0]);
   LOG_DEBUG("App finished, sending event: %s app: %s", kKilledApp,
             app_id.c_str());
 
@@ -215,9 +203,8 @@ static void AglShellActivateApp(const std::string& app_id) {
 }
 
 int WebAppLauncherRuntime::Run(int argc, const char** argv) {
-  std::vector<std::string> args(argv + 1, argv + argc);
-  bool is_wait_host_service = IsWaitForHostService(args);
-  std::string app_id = IsActivateApp(args);
+  bool is_wait_host_service = IsWaitForHostService();
+  std::string app_id = IsActivateApp(Args::Instance());
 
   if (is_wait_host_service) {
     while (!WebAppManagerServiceAGL::Instance()->IsHostServiceRunning()) {
@@ -242,12 +229,12 @@ int WebAppLauncherRuntime::Run(int argc, const char** argv) {
     return launcher_->Loop(argc, argv, e_flag);
   }
 
-  id_ = GetAppId(args);
-  url_ = GetAppUrl(args);
+  id_ = GetAppId(Args::Instance(), argv[0]);
+  url_ = GetAppUrl(Args::Instance());
 
   SetupSignals();
 
-  if (!Init())
+  if (!Init(Args::Instance()))
     return -1;
 
   std::string surface_role_str =
@@ -277,7 +264,7 @@ void WebAppLauncherRuntime::SetupSignals() {
   signal(SIGTERM, sig_term_handler);
 }
 
-bool WebAppLauncherRuntime::Init() {
+bool WebAppLauncherRuntime::Init(Args* args) {
   // based on https://tools.ietf.org/html/rfc3986#page-50
   std::regex url_regex(
       R"(^(([^:\/?#]+):)?(//([^\/?#]*))?([^?#]*)(\?([^#]*))?(#(.*))?)",
@@ -302,11 +289,11 @@ bool WebAppLauncherRuntime::Init() {
       }
     }
 
-    std::string path = util::GetEnvVar("AFM_APP_INSTALL_DIR");
-    if (path.empty()) {
-      LOG_DEBUG("Please set AFM_APP_INSTALL_DIR");
+    if (!args->is_set_flag(Args::FLAG_APP_DIR)) {
+      LOG_DEBUG("Application directory missing.");
       return false;
     }
+    std::string path = args->app_dir_;
     path = path + "/" + kWebAppConfig;
 
     // Parse config file of runxdg
@@ -451,11 +438,106 @@ int RenderProcessRuntime::Run(int argc, const char** argv) {
   return webOSMain.Run(argc, argv);
 }
 
+static void print_help(void) {
+  fprintf(stderr, "WAM: Web Application Manager\n");
+  fprintf(stderr,
+          "\t[--activate_app=appid] -- activate application. Interrnal "
+          "usage.\n\tNot needing for starting applications.\n");
+  fprintf(stderr,
+          "\t[--type=zygote|utility] -- used to determine if WAM instance is a "
+          "browser one.\n\tDo not use if starting application.\n");
+  fprintf(
+      stderr,
+      "\t[--appid=appid] name of an application id.\n\tRequired if starting a "
+      "web application.\n");
+  fprintf(stderr,
+          "\t[--app-install-dir=/path/to/root_index] installation path for web "
+          "application.\n\tRequired if starting a web application.\n");
+  fprintf(stderr, "\t-h -- this help message \n");
+  exit(EXIT_FAILURE);
+}
+
+void Args::parse_args(int argc, const char** argv) {
+  int c;
+  int option_index;
+  opterr = 0;
+
+  copy_cmdline(argc, argv);
+
+  struct option long_opts[] = {{"help", no_argument, 0, 'h'},
+                               {"type", required_argument, 0, 't'},
+                               {"activate-app", required_argument, 0, 'x'},
+                               {"appid", required_argument, 0, 'a'},
+                               {"app-install-dir", required_argument, 0, 'd'},
+                               {0, 0, 0, 0}};
+
+  while ((c = getopt_long(new_argc, new_argv, "ht:a:i:d:", long_opts,
+                          &option_index)) != -1) {
+    switch (c) {
+      case 'h':
+        print_help();
+        break;
+      case 't':
+        set_flag(FLAG_APP_TYPE);
+        type_ = std::string(optarg);
+        break;
+      case 'x':
+        set_flag(FLAG_ACTIVATE_APP);
+        activate_app_ = optarg;
+        break;
+      case 'a':
+        set_flag(FLAG_APP_ID);
+        app_id_ = std::string(optarg);
+        break;
+      case 'd':
+        set_flag(FLAG_APP_DIR);
+        app_dir_ = std::string(optarg);
+        break;
+      default:
+        break;
+    }
+  }
+
+  if (optind < new_argc) {
+    // check for 'http://'
+    int p = optind;
+    while (p < new_argc) {
+      if (!strcmp(new_argv[p], "http://")) {
+        set_flag(FLAG_HTTP_LINK);
+        http_link_ = std::string(new_argv[p]);
+        break;
+      }
+      p++;
+    }
+  }
+}
+
+void Args::copy_cmdline(int argc, const char** argv) {
+  new_argc = argc;
+  new_argv = static_cast<char**>(calloc(new_argc + 1, sizeof(*new_argv)));
+
+  for (int i = 0; i < new_argc; i++) {
+    size_t len = strlen(argv[i]) + 1;
+    new_argv[i] = static_cast<char*>(calloc(len, sizeof(char)));
+    memcpy(new_argv[i], argv[i], len);
+  }
+
+  new_argv[argc] = nullptr;
+}
+
+void Args::clear_cmdline(void) {
+  for (int i = 0; i < new_argc; i++)
+    free(new_argv[i]);
+  free(new_argv);
+}
+
 int WebRuntimeAGL::Run(int argc, const char** argv) {
+  int ret;
+  Args::Instance()->parse_args(argc, argv);
+
   LOG_DEBUG("WebRuntimeAGL::run");
-  std::vector<std::string> args(argv + 1, argv + argc);
-  if (IsBrowserProcess(args)) {
-    if (IsSharedBrowserProcess(args)) {
+  if (IsBrowserProcess(Args::Instance())) {
+    if (IsSharedBrowserProcess(Args::Instance())) {
       LOG_DEBUG("WebRuntimeAGL - creating SharedBrowserProcessRuntime");
       runtime_ = new SharedBrowserProcessRuntime();
     } else {
@@ -467,7 +549,9 @@ int WebRuntimeAGL::Run(int argc, const char** argv) {
     runtime_ = new RenderProcessRuntime();
   }
 
-  return runtime_->Run(argc, argv);
+  ret = runtime_->Run(argc, argv);
+  Args::Instance()->clear_cmdline();
+  return ret;
 }
 
 std::unique_ptr<WebRuntime> WebRuntime::Create() {
