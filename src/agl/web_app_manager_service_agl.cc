@@ -26,12 +26,12 @@
 #include <climits>
 #include <cstdlib>
 #include <exception>
+#include <fstream>
 #include <iostream>
 #include <set>
 #include <sstream>
 
 #include <json/value.h>
-#include <libxml/parser.h>
 
 #include "log_manager.h"
 #include "utils.h"
@@ -305,7 +305,7 @@ void WebAppManagerServiceAGL::TriggerStartupApp() {
           10, this, &WebAppManagerServiceAGL::LaunchStartupAppFromURL);
     } else {
       startup_app_timer_.Start(
-          10, this, &WebAppManagerServiceAGL::LaunchStartupAppFromConfig);
+          10, this, &WebAppManagerServiceAGL::LaunchStartupAppFromJsonConfig);
     }
   }
 }
@@ -325,115 +325,48 @@ void WebAppManagerServiceAGL::TriggetEventForApp(const std::string& action) {
   }
 }
 
-void WebAppManagerServiceAGL::LaunchStartupAppFromConfig() {
+void WebAppManagerServiceAGL::LaunchStartupAppFromJsonConfig() {
   std::string configfile;
   configfile.append(startup_app_uri_);
-  configfile.append("/config.xml");
+  configfile.append("/appinfo.json");
 
-  xmlDoc* doc = xmlReadFile(configfile.c_str(), nullptr, 0);
-  xmlNode* root = xmlDocGetRootElement(doc);
+  Json::Value root;
+  Json::CharReaderBuilder builder;
+  JSONCPP_STRING errs;
 
-  xmlChar* id = nullptr;
-  xmlChar* version = nullptr;
-  xmlChar* name = nullptr;
-  xmlChar* content = nullptr;
-  xmlChar* description = nullptr;
-  xmlChar* author = nullptr;
-  xmlChar* icon = nullptr;
-  xmlChar* width = nullptr;
-  xmlChar* height = nullptr;
+  std::ifstream ifs;
+  ifs.open(configfile.c_str());
 
-  std::set<std::string> extensions_list;
-
-  id = xmlGetProp(root, (const xmlChar*)"id");
-  version = xmlGetProp(root, (const xmlChar*)"version");
-  for (xmlNode* node = root->children; node; node = node->next) {
-    if (!xmlStrcmp(node->name, (const xmlChar*)"name"))
-      name = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-    if (!xmlStrcmp(node->name, (const xmlChar*)"icon"))
-      icon = xmlGetProp(node, (const xmlChar*)"src");
-    if (!xmlStrcmp(node->name, (const xmlChar*)"content"))
-      content = xmlGetProp(node, (const xmlChar*)"src");
-    if (!xmlStrcmp(node->name, (const xmlChar*)"description"))
-      description = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-    if (!xmlStrcmp(node->name, (const xmlChar*)"author"))
-      author = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-    if (!xmlStrcmp(node->name, (const xmlChar*)"window")) {
-      width = xmlGetProp(node, (const xmlChar*)"width");
-      height = xmlGetProp(node, (const xmlChar*)"height");
-    }
-
-    if (!xmlStrcmp(node->name, (const xmlChar*)"feature")) {
-      xmlChar* feature_name = xmlGetProp(node, (const xmlChar*)"name");
-      if (!xmlStrcmp(feature_name,
-                     (const xmlChar*)"urn:AGL:widget:required-api")) {
-        for (xmlNode* feature_child = node->children; feature_child;
-             feature_child = feature_child->next) {
-          if (!xmlStrcmp(feature_child->name, (const xmlChar*)"param")) {
-            xmlChar* param_name =
-                xmlGetProp(feature_child, (const xmlChar*)"name");
-            xmlChar* param_value =
-                xmlGetProp(feature_child, (const xmlChar*)"value");
-            if (!xmlStrcmp(param_value, (const xmlChar*)"injection"))
-              extensions_list.emplace((const char*)param_name);
-            xmlFree(param_name);
-            xmlFree(param_value);
-          }
-        }
-      }
-      xmlFree(feature_name);
-    }
+  if (!parseFromStream(builder, ifs, &root, &errs)) {
+    LOG_DEBUG("Failed to parse %s configuration file", configfile.c_str());
   }
-  fprintf(stdout, "...\n");
-  LOG_DEBUG("id: %s", id);
-  LOG_DEBUG("version: %s", version);
-  LOG_DEBUG("name: %s", name);
-  LOG_DEBUG("content: %s", content);
-  LOG_DEBUG("description: %s", description);
-  LOG_DEBUG("author: %s", author);
-  LOG_DEBUG("icon: %s", icon);
 
-  Json::Value obj(Json::objectValue);
-  obj["id"] = (const char*)id;
-  obj["version"] = (const char*)version;
-  obj["vendor"] = (const char*)author;
-  obj["type"] = "web";
-  obj["main"] = (const char*)content;
-  obj["title"] = (const char*)name;
-  obj["uiRevision"] = "2";
-  obj["icon"] = (const char*)icon;
-  obj["folderPath"] = startup_app_uri_.c_str();
-  obj["surfaceId"] = startup_app_surface_id_;
-  obj["surface_role"] = static_cast<int>(surface_role_);
-  obj["panel_type"] = static_cast<int>(panel_type_);
-  Json::Value extensions_obj(Json::arrayValue);
-  std::for_each(
-      extensions_list.cbegin(), extensions_list.cend(),
-      [&](const auto& extension) { extensions_obj.append(extension); });
-  obj["extensions"] = extensions_obj;
+  root["folderPath"] = startup_app_uri_.c_str();
 
-  width_ = width ? atoi((const char*)width) : 0;
-  height_ = height ? atoi((const char*)height) : 0;
+  std::string width = root["surface"].get("width", std::string("0")).asString();
+  std::string height =
+      root["surface"].get("height", std::string("0")).asString();
+
+  if (width != std::string("0"))
+    width_ = atoi(width.c_str());
+  else
+    width_ = 0;
+  if (height != std::string("0"))
+    height_ = atoi(height.c_str());
+  else
+    height_ = 0;
 
   if (width_)
-    obj["widthOverride"] = width_;
+    root["widthOverride"] = width_;
   if (height_)
-    obj["heightOverride"] = height_;
+    root["heightOverride"] = height_;
 
-  xmlFree(id);
-  xmlFree(version);
-  xmlFree(name);
-  xmlFree(content);
-  xmlFree(description);
-  xmlFree(author);
-  xmlFree(icon);
-  xmlFree(width);
-  xmlFree(height);
-  xmlFreeDoc(doc);
+  root["surface_role"] = static_cast<int>(surface_role_);
+  root["panel_type"] = static_cast<int>(panel_type_);
 
-  std::string app_desc = util::JsonToString(obj);
+  std::string app_desc = util::JsonToString(root);
   std::string params = "{}";
-  std::string app_id = obj["id"].asString();
+  std::string app_id = root["id"].asString();
   int err_code = 0;
   std::string err_msg;
   WebAppManagerService::OnLaunch(app_desc, params, app_id, err_code, err_msg);

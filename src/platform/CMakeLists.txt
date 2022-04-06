@@ -98,8 +98,6 @@ elseif(OS_AGL)
         ${WAM_ROOT_SOURCE_DIR}/agl/web_app_manager_service_agl.h
         ${WAM_ROOT_SOURCE_DIR}/agl/web_runtime_agl.h
     )
-    LIST(APPEND WAM_LIB_INCLUDE_DIRS ${LIBXML2_INCLUDE_DIRS})
-    LIST(APPEND WAM_LIB_LIBS ${LIBXML2_LDFLAGS})
 endif()
 
 add_library(${PROJECT_NAME} SHARED ${HEADERS} ${SOURCES})

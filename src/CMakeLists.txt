@@ -35,7 +35,6 @@ if(OS_WEBOS)
 elseif(OS_AGL)
     set(DISABLE_PMLOG TRUE)
     add_compile_definitions(OS_AGL)
-    pkg_search_module(LIBXML2 REQUIRED libxml-2.0)
 endif()
 
 if(DISABLE_PMLOG)
