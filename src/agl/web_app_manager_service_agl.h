@@ -75,6 +75,7 @@ class WebAppManagerServiceAGL : public WebAppManagerService {
   WebAppManagerServiceAGL();
 
   void LaunchStartupAppFromConfig();
+  void LaunchStartupAppFromJsonConfig();
   void LaunchStartupAppFromURL();
 
   void OnActivateEvent();

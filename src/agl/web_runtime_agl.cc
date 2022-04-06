@@ -19,10 +19,11 @@
 #include <getopt.h>
 #include <unistd.h>
 #include <cassert>
+#include <fstream>
 #include <regex>
 
 #include <glib.h>
-#include <libxml/parser.h>
+#include <json/value.h>
 #include <webos/app/webos_main.h>
 
 #include "log_manager.h"
@@ -31,7 +32,7 @@
 #include "web_app_manager.h"
 #include "web_app_manager_service_agl.h"
 
-const char kWebAppConfig[] = "config.xml";
+const char kWebAppConfig_appinfo[] = "appinfo.json";
 
 volatile sig_atomic_t e_flag = 1;
 
@@ -294,11 +295,10 @@ bool WebAppLauncherRuntime::Init(Args* args) {
       return false;
     }
     std::string path = args->app_dir_;
-    path = path + "/" + kWebAppConfig;
+    path = path + "/" + kWebAppConfig_appinfo;
 
-    // Parse config file of runxdg
-    if (ParseConfig(path.c_str())) {
-      LOG_DEBUG("Error in config");
+    if (!ParseJsonConfig(path.c_str())) {
+      LOG_DEBUG("Error in appinfo.json");
       return false;
     }
 
@@ -316,107 +316,57 @@ bool WebAppLauncherRuntime::Init(Args* args) {
   }
 }
 
-int WebAppLauncherRuntime::ParseConfig(const char* path_to_config) {
-  xmlDoc* doc = xmlReadFile(path_to_config, nullptr, 0);
-  xmlNode* root = xmlDocGetRootElement(doc);
+bool WebAppLauncherRuntime::ParseJsonConfig(const char* path_to_config) {
+  Json::Value root;
+  Json::CharReaderBuilder builder;
+  JSONCPP_STRING errs;
 
-  xmlChar* id = nullptr;
-  xmlChar* version = nullptr;
-  xmlChar* name = nullptr;
-  xmlChar* content = nullptr;
-  xmlChar* description = nullptr;
-  xmlChar* author = nullptr;
-  xmlChar* icon = nullptr;
+  std::ifstream ifs;
+  ifs.open(path_to_config);
 
-  xmlChar* width = nullptr;
-  xmlChar* height = nullptr;
-
-  xmlChar* surface_type = nullptr;
-  xmlChar* panel_type = nullptr;
-
-  id = xmlGetProp(root, (const xmlChar*)"id");
-  version = xmlGetProp(root, (const xmlChar*)"version");
-  for (xmlNode* node = root->children; node; node = node->next) {
-    if (!xmlStrcmp(node->name, (const xmlChar*)"name"))
-      name = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-    if (!xmlStrcmp(node->name, (const xmlChar*)"icon"))
-      icon = xmlGetProp(node, (const xmlChar*)"src");
-    if (!xmlStrcmp(node->name, (const xmlChar*)"content"))
-      content = xmlGetProp(node, (const xmlChar*)"src");
-    if (!xmlStrcmp(node->name, (const xmlChar*)"description"))
-      description = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-    if (!xmlStrcmp(node->name, (const xmlChar*)"author"))
-      author = xmlNodeListGetString(doc, node->xmlChildrenNode, 1);
-
-    if (!xmlStrcmp(node->name, (const xmlChar*)"window")) {
-      width = xmlGetProp(node, (const xmlChar*)"width");
-      height = xmlGetProp(node, (const xmlChar*)"height");
-    }
-
-    if (!xmlStrcmp(node->name, (const xmlChar*)"surface")) {
-      surface_type = xmlGetProp(node, (const xmlChar*)"role");
-      panel_type = xmlGetProp(node, (const xmlChar*)"panel");
-    }
+  if (!parseFromStream(builder, ifs, &root, &errs)) {
+    LOG_DEBUG("Failed parse %s configuration file", path_to_config);
+    return false;
   }
 
-  fprintf(stdout, "...parse_config...\n");
-  LOG_DEBUG("id: %s", id);
-  LOG_DEBUG("version: %s", version);
-  LOG_DEBUG("name: %s", name);
-  LOG_DEBUG("content: %s", content);
-  LOG_DEBUG("description: %s", description);
-  LOG_DEBUG("author: %s", author);
-  LOG_DEBUG("icon: %s", icon);
-  LOG_DEBUG("width: %s", width);
-  LOG_DEBUG("height %s", height);
-  LOG_DEBUG("surface_type: %s", surface_type);
-  LOG_DEBUG("panel_type %s", panel_type);
+  name_ = root["name"].asString();
+  std::string id = root["id"].asString();
+  std::string version = root["version"].asString();
+  std::string icon = root["icon"].asString();
+  std::string content = root["content"].asString();
+  std::string description = root["description"].asString();
+  std::string author = root["author"].asString();
 
-  name_ = std::string((const char*)name);
-  if (width)
-    width_ = std::string((const char*)width);
-  else
-    width_ = std::string("0");
+  std::string surface_type =
+      root["surface"]
+          .get("role", static_cast<int>(AglShellSurfaceType::kNone))
+          .asString();
+  std::string panel_type =
+      root["surface"]
+          .get("panel_edge", static_cast<int>(AglShellPanelEdge::kNotFound))
+          .asString();
 
-  if (height)
-    height_ = std::string((const char*)height);
-  else
-    height_ = std::string("0");
+  height_ = root["surface"].get("height", std::string("0")).asString();
+  width_ = root["surface"].get("width", std::string("0")).asString();
 
   surface_type_ = AglShellSurfaceType::kNone;
   panel_type_ = AglShellPanelEdge::kNotFound;
 
-  if (surface_type)
-    surface_type_ = GetSurfaceType((const char*)surface_type);
+  if (surface_type !=
+      std::to_string(static_cast<int>(AglShellSurfaceType::kNone))) {
+    surface_type_ = GetSurfaceType(surface_type.c_str());
 
-  if (panel_type) {
-    if (surface_type_ != AglShellSurfaceType::kPanel) {
-      LOG_WARNING(MSGID_APP_DESC_PARSE_FAIL, 0,
-                  "Panel_type can only be set when surface_type is panel");
-      return -1;
-    }
-
-    panel_type_ = GetSurfacePanelType((const char*)panel_type);
-    if (panel_type_ == AglShellPanelEdge::kNotFound) {
-      LOG_WARNING(MSGID_APP_DESC_PARSE_FAIL, 0, "Incorrect panel_type value");
-      return -1;
+    if (panel_type !=
+        std::to_string(static_cast<int>(AglShellPanelEdge::kNotFound))) {
+      panel_type_ = GetSurfacePanelType(panel_type.c_str());
+      if (panel_type_ == AglShellPanelEdge::kNotFound) {
+        LOG_DEBUG("Failed to get a valid panel edge");
+        return false;
+      }
     }
   }
 
-  xmlFree(id);
-  xmlFree(version);
-  xmlFree(name);
-  xmlFree(content);
-  xmlFree(description);
-  xmlFree(author);
-  xmlFree(icon);
-  xmlFree(width);
-  xmlFree(height);
-  xmlFree(surface_type);
-  xmlFree(panel_type);
-  xmlFreeDoc(doc);
-
-  return 0;
+  return true;
 }
 
 int SharedBrowserProcessRuntime::Run(int argc, const char** argv) {

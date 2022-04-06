@@ -106,7 +106,7 @@ class WebAppLauncherRuntime : public WebRuntime {
   bool Init(Args* args);
   bool InitWM();
   bool InitHS();
-  int ParseConfig(const char* file);
+  bool ParseJsonConfig(const char* file);
   void SetupSignals();
 
   std::string id_;
