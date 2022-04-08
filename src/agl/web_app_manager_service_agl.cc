@@ -264,7 +264,7 @@ void WebAppManagerServiceAGL::SetStartupApplication(
   surface_role_ = surface_role;
   panel_type_ = panel_type;
 
-  width_ = width_;
+  width_ = width;
   height_ = height;
 }
 
@@ -340,21 +340,6 @@ void WebAppManagerServiceAGL::LaunchStartupAppFromJsonConfig() {
   if (!parseFromStream(builder, ifs, &root, &errs)) {
     LOG_DEBUG("Failed to parse %s configuration file", configfile.c_str());
   }
-
-  root["folderPath"] = startup_app_uri_.c_str();
-
-  std::string width = root["surface"].get("width", std::string("0")).asString();
-  std::string height =
-      root["surface"].get("height", std::string("0")).asString();
-
-  if (width != std::string("0"))
-    width_ = atoi(width.c_str());
-  else
-    width_ = 0;
-  if (height != std::string("0"))
-    height_ = atoi(height.c_str());
-  else
-    height_ = 0;
 
   if (width_)
     root["widthOverride"] = width_;
